@@ -26,9 +26,9 @@ Just `make` it.
 It can be changed to other numbers if desired.
 
 # Screenshots
-![screenshot 1](pics/Screen Shot 2019-10-03 at 21.48.31.png)
+![screenshot 1](pics/screenshot_1.png)
 
-![screenshot 2](pics/Screen Shot 2019-10-03 at 21.48.36.png)
+![screenshot 2](pics/screenshot_2.png)
 
 # Future Work
 * Remove sending records from the root process to itself.
