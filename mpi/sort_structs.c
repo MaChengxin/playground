@@ -69,6 +69,53 @@ void print_records(Record *records, int num_of_recs)
     }
 }
 
+/* Precondition of this function:
+    1. The two arrays to be merged are already sorted.
+    2. The length of the two arrays are the same.
+ */
+Record *merge_sorted_records_arrays(Record *rec_arr_1, Record *rec_arr_2, int num_of_recs_per_arr, Record *merged_rec_arr)
+{
+    merged_rec_arr = malloc(2 * num_of_recs_per_arr * sizeof(Record));
+
+    int i = 0, j = 0, k = 0;
+
+    while (i < num_of_recs_per_arr && j < num_of_recs_per_arr)
+    {
+        if (rec_arr_1[i].id < rec_arr_2[j].id)
+        {
+            merged_rec_arr[k].id = rec_arr_1[i].id;
+            merged_rec_arr[k].value = rec_arr_1[i].value;
+            k = k + 1;
+            i = i + 1;
+        }
+        else
+        {
+            merged_rec_arr[k].id = rec_arr_2[j].id;
+            merged_rec_arr[k].value = rec_arr_2[j].value;
+            k = k + 1;
+            j = j + 1;
+        }
+    }
+
+    while (i < num_of_recs_per_arr)
+    {
+        merged_rec_arr[k].id = rec_arr_1[i].id;
+        merged_rec_arr[k].value = rec_arr_1[i].value;
+        k = k + 1;
+        i = i + 1;
+    }
+
+    while (j < num_of_recs_per_arr)
+    {
+        merged_rec_arr[k].id = rec_arr_2[j].id;
+        merged_rec_arr[k].value = rec_arr_2[j].value;
+        k = k + 1;
+        j = j + 1;
+    }
+
+    return merged_rec_arr;
+}
+
 int main(int argc, char **argv)
 {
     /* ================== Start up ================== */
@@ -139,10 +186,31 @@ int main(int argc, char **argv)
         printf("Inside the root process, before sorting the received arrays \n");
         print_records(recv_buf, size * NUM_OF_RECORDS);
 
-        qsort(recv_buf, size * NUM_OF_RECORDS, sizeof(Record), rec_cmp);
+        // The code below using merge_sorted_records_arrays is valid iff there are 4 processes running.
+        // Be sure to specify "-n 4" after mpirun
 
-        printf("Inside the root process, after sorting the received arrays (in place) \n");
-        print_records(recv_buf, size * NUM_OF_RECORDS);
+        // Merge sorted arrays of records from process 0 and 1
+        Record *merged_01;
+        merged_01 = merge_sorted_records_arrays(recv_buf, &recv_buf[NUM_OF_RECORDS], NUM_OF_RECORDS, merged_01);
+
+        // Merge sorted arrays of records from process 2 and 3
+        Record *merged_23;
+        merged_23 = merge_sorted_records_arrays(&recv_buf[2 * NUM_OF_RECORDS], &recv_buf[3 * NUM_OF_RECORDS], NUM_OF_RECORDS, merged_23);
+
+        // Merge all
+        Record *merged_0123;
+        merged_0123 = merge_sorted_records_arrays(merged_01, merged_23, 2 * NUM_OF_RECORDS, merged_0123);
+
+        printf("Inside the root process, after sorting the received arrays (with extra space) \n");
+        print_records(merged_0123, 4 * NUM_OF_RECORDS);
+
+        free(merged_01);
+        free(merged_23);
+        free(merged_0123);
+
+        // qsort(recv_buf, size * NUM_OF_RECORDS, sizeof(Record), rec_cmp);
+        // printf("Inside the root process, after sorting the received arrays (in place) \n");
+        // print_records(recv_buf, size * NUM_OF_RECORDS);
     }
 
     /* ================== Tear down ================== */
