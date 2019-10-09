@@ -1,0 +1,82 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{mathtools}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+%------------------------------------------------------------
+% This block of code defines the information to appear in the
+% Title page.
+\title[Progress of Thesis Work] %optional
+{Progress of Thesis Work}
+
+\subtitle {and discussion on current/next steps}
+
+\author[C Ma] % (optional)
+{Chengxin Ma}
+
+\institute[TU Delft] % (optional)
+{
+  \inst{}
+  Faculty of Electrical Engineering, Mathematics and Computer Science \\
+  Delft University of Technology
+}
+
+\date{\today}
+
+% End of title page configuration block
+%------------------------------------------------------------
+
+%------------------------------------------------------------
+% The next block of commands puts the table of contents at the 
+% beginning of each section and highlights the current section.
+
+\AtBeginSection[]
+{
+  \begin{frame}
+    \frametitle{Table of Contents}
+    \tableofcontents[currentsection]
+  \end{frame}
+}
+%------------------------------------------------------------
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}
+\frametitle{Table of Contents}
+\tableofcontents
+\end{frame}
+
+%------------------------------------------------------------
+%------------------------------------------------------------
+\section{Section Title}
+
+%------------------------------------------------------------
+\begin{frame}
+\frametitle{Frame Title}
+
+Frame contents.
+
+\end{frame}
+
+%------------------------------------------------------------
+%------------------------------------------------------------
+
+\section{Next Steps}
+
+%------------------------------------------------------------
+
+\begin{frame}
+\frametitle{Next Steps}
+
+Comments and suggestions?
+
+\end{frame}
+
+
+\end{document}
