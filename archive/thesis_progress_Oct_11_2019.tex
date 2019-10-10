@@ -1,8 +1,12 @@
 \documentclass{beamer}
 
-\usepackage[utf8]{inputenc}
 \usepackage{hyperref}
+\usepackage[utf8]{inputenc}
 \usepackage{mathtools}
+
+\setlength {\marginparwidth }{2cm}
+\usepackage{todonotes}
+\presetkeys{todonotes}{inline}{}
 
 \usetheme{Madrid}
 \usecolortheme{default}
@@ -58,7 +62,7 @@
 
 %------------------------------------------------------------
 \begin{frame}
-\frametitle{Lessons Learned from LLNL Tutorial}
+\frametitle{Lessons Learned from LLNL Tutorial\footnote{\url{https://computing.llnl.gov/tutorials/parallel_comp/}}}
 
 \begin{itemize}
   \item Automatic vs. Manual Parallelization
@@ -72,6 +76,8 @@
   \item I/O
 \end{itemize}
 
+The aspects in \textbf{bold} format are major concerns in my thesis project.
+
 \end{frame}
 
 %------------------------------------------------------------
@@ -79,6 +85,8 @@
 \frametitle{Automatic vs. Manual Parallelization}
 
 Manual.
+
+More control over the problem to be solved.
   
 \end{frame}
 
@@ -86,18 +94,19 @@ Manual.
 \begin{frame}
 \frametitle{Understand the Problem and the Program}
 
+\todo{This slide needs to be discussed.}
+
 \begin{itemize}
   \item Hotspots (where most of the real work is being done)
     \begin{itemize}
-      \item sorting
+      \item Sorting
     \end{itemize}
   \item Bottlenecks
     \begin{itemize}
-      \item Disk I/O (so we use Arrow stuff)
+      \item Disk I/O \alert{(so we use Arrow stuff)}
       \item Network/communication
        \begin{itemize}
-        \item All-to-all communication
-        \item But how do we quantify?
+        \item Pattern: all-to-all communication
        \end{itemize}
       \item What else?
     \end{itemize}
@@ -110,7 +119,7 @@ Manual.
 \frametitle{Partitioning}
 
 \begin{itemize}
-  \item \textbf{Domain decomposition} (we go this way)
+  \item \textbf{Domain decomposition} \alert{(we go this way due to the nature of the problem)}
   \item Functional decomposition
 \end{itemize}
   
@@ -122,20 +131,38 @@ Manual.
 
 \begin{itemize}
   \item Communication overhead
-  \item Latency and bandwidth
-  \item \textbf{Visibility of communications}
     \begin{itemize}
-      \item With the Message Passing Model, communications are explicit and generally quite visible and under the control of the programmer.
-      \item With the Data Parallel Model \footnote{May also be referred to as the Partitioned Global Address Space (PGAS) model. 
-      \url{https://computing.llnl.gov/tutorials/parallel\_comp/\#ModelsData}}, 
-      communications often occur transparently to the programmer, particularly on distributed memory architectures. 
-      The programmer may not even be able to know exactly how inter-task communications are being accomplished.
+      \item Machine cycles and resources that could be used for computation are instead used to package and transmit data. 
+        \alert{(Using RDMA, it is possible to move the workload of communication from CPU and OS to, e.g., NIC.)}
+      \item Communications frequently require some type of synchronization between tasks, which can result in tasks spending time "waiting" instead of doing work. 
+        \alert{(This underlines the importance of scheduling.)}
+      \item Competing communication traffic can saturate the available network bandwidth, further aggravating performance problems. 
+        \alert{(ditto.)}
     \end{itemize}
-  \item Synchronous vs. \textbf{asynchronous communication} (we go for asynchronous communication)
-  \item Scope of communication: all-to-all
-  
+  \item Latency and bandwidth
+  \begin{itemize}
+    \item We desire low latency and high bandwidth. \alert{(RDMA offers such features.)}
+  \end{itemize}
 \end{itemize}
     
+\end{frame}
+
+%------------------------------------------------------------
+\begin{frame}
+\frametitle{Communication}
+  
+\begin{itemize}
+  \item \textbf{Visibility of communications}
+    \begin{itemize}
+      \item With the \textbf{Message Passing Model} \alert{(we choose this option)}, communications are explicit and generally quite visible and under the control of the programmer.        \item With the Data Parallel Model \footnote{May also be referred to as the Partitioned Global Address Space (PGAS) model. 
+        \url{https://computing.llnl.gov/tutorials/parallel\_comp/\#ModelsData}}, 
+        communications often occur transparently to the programmer, particularly on distributed memory architectures. 
+        The programmer may not even be able to know exactly how inter-task communications are being accomplished.
+    \end{itemize}
+  \item Synchronous vs. \textbf{asynchronous communication} \alert{(we go for asynchronous communication)}
+  \item Scope of communication: all-to-all
+\end{itemize}
+      
 \end{frame}
 
 %------------------------------------------------------------
@@ -171,9 +198,11 @@ If data partitioning is done well, load might be almost balanced.
 Qualitative measure of the ratio of computation to communication.
 
 \begin{itemize}
-  \item Fine-grain Parallelism: repeat: sort part of the data locally, send to destination
+  \item Fine-grain Parallelism: sort part of the data locally, send to destination, repeat until all data is processed
   \item Coarse-grain Parallelism: sort all the data locally, send to destination
 \end{itemize}
+
+\alert{(The final design might be fine-grain palleelism, but we can start from the coarse-grain parellelism and iteratively improve performance.)}
     
 \end{frame}
 
@@ -197,6 +226,8 @@ Not the concern in my thesis project.
 \begin{frame}
 \frametitle{Underlying Hardware Architecture}
 
+\todo{This slide needs to be discussed.}
+
 Nodes connected by network (referred to as Hybrid Distributed-Shared Memory in the LLNL tutorial)
 
 Interconnection technologies:
@@ -207,47 +238,16 @@ Interconnection technologies:
 
 Some \footnote{\url{https://www.hpcadvisorycouncil.com/pdf/IB\_and\_10GigE\_in\_HPC.pdf}}
 says either of them is OK.
-How to identify if communication bandwidth/latency is the bottleneck?
-
-My opinion on RDMA:
-from the programmer’s perspective, usage of RDMA might be implicit.
-“RDMA programming interfaces are often not designed to be used by end-users directly”.
-\footnote{\url{https://htor.inf.ethz.ch/blog/index.php/2016/05/15/what-are-the-real-differences-between-rdma-infiniband-rma-and-pgas/}}
+\alert{How to identify if communication bandwidth/latency is indeed the bottleneck?}
 
 \end{frame}
 
 %------------------------------------------------------------
 
 \begin{frame}
-\frametitle{Parallel Programming Model}
+\frametitle{Thoughts on RDMA}
 
-Distributed Memory / Message Passing Model
-
-\end{frame}
-
-%------------------------------------------------------------
-%------------------------------------------------------------
-
-\section{Next steps}
-
-%------------------------------------------------------------
-
-\begin{frame}
-\frametitle{Next steps}
-
-Comments and suggestions?
-
-\end{frame}
-
-%------------------------------------------------------------
-%------------------------------------------------------------
-
-\section{Backup slides}
-
-%------------------------------------------------------------
-
-\begin{frame}
-\frametitle{Backup Slides}
+\todo{This slide needs to be discussed.}
 
 A rough layering:
 
@@ -265,9 +265,77 @@ A rough layering:
     \end{tabular}
 \end{center}
 
+My opinion on RDMA:
+from the programmer’s perspective, usage of RDMA might be implicit.
+“RDMA programming interfaces are often not designed to be used by end-users directly”.
+\footnote{\url{https://htor.inf.ethz.ch/blog/index.php/2016/05/15/what-are-the-real-differences-between-rdma-infiniband-rma-and-pgas/}}
+
 I guess the major part of my work would be \textbf{using} the user level libraries to write the user applications, 
 instead of \textbf{writing} the user level libraries. 
-What do you think?
+
+\end{frame}
+
+%------------------------------------------------------------
+
+\begin{frame}
+\frametitle{Parallel Programming Model}
+
+Message Passing Model
+
+\end{frame}
+
+%------------------------------------------------------------
+
+\begin{frame}
+\frametitle{Frameworks that Meet the Requirements}
+
+\todo{This slide needs to be discussed.}
+
+Based on the discussion above, so far the requirements are:
+
+\begin{itemize}
+  \item Support for InfiniBand (RDMA) or 10 Gigabit Ethernet
+  \item Using the Message Passing Model (for explicitly controlling communication)
+\end{itemize}
+
+The following frameworks meet the these requirements:
+
+\begin{itemize}
+  \item MPI \footnote{MPI is interconnect independent: \url{https://stackoverflow.com/a/30400654/5723556}} over InfiniBand 
+    \footnote{\url{https://www.open-mpi.org/papers/workshop-2006/thu_01_mpi_on_infiniband.pdf}}
+  \item \alert{What else?}
+\end{itemize}
+
+Alternatively, we can build up our own framework starting from scratch.
+The benefit is the high degree of freedom to customize the system.
+
+\end{frame}
+
+%------------------------------------------------------------
+%------------------------------------------------------------
+
+\section{Miscellaneous}
+
+%------------------------------------------------------------
+
+\begin{frame}
+\frametitle{About the Ray Project}
+
+I will take a look after I get more knowledge about Plasma.
+
+\end{frame}
+
+%------------------------------------------------------------
+%------------------------------------------------------------
+
+\section{Next steps}
+
+%------------------------------------------------------------
+
+\begin{frame}
+\frametitle{Next steps}
+
+Comments and suggestions?
 
 \end{frame}
 
