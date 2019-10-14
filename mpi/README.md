@@ -33,3 +33,6 @@ It can be changed to other numbers if desired.
 # Future Work
 * ~~Remove sending records from the root process to itself.~~ (Decided not to implement. Reason: The rationale behind this was to reduce communication. After a second thought, I think it is the MPI framework that should take care of this. I.e., MPI should be aware of the current process, other processes on the same node, and processes on other nodes, and decide how to share data accordingly. From the programmer's perspective such details should be hidden.)
 * Implement k-way merge algorithm for phase two sorting. (Update on Oct 8, 2019: a naïve implementation of merge was done. See comments in the source code for more info.)
+
+# Known Issues
+* For now only `MPICH2` is proven to work. Using `OpenMPI` will yield wrong results.
