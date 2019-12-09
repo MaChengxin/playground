@@ -1,0 +1,4 @@
+ 1046  mpirun -np 2 -host tcn474,tcn484 --map-by node --mca pml ob1 --mca btl self,tcp  --mca btl_tcp_if_include enp4s0f0 ./IMB-MPI1 PingPong > MPI_PingPong_pml_ob1_btl_self_tcp_btl_tcp_if_include_enp4s0f0.log
+ 1047  mpirun -np 2 -host tcn474,tcn484 --map-by node --mca pml ob1 --mca btl self,tcp  --mca btl_tcp_if_include enp4s0f1 ./IMB-MPI1 PingPong > MPI_PingPong_pml_ob1_btl_self_tcp_btl_tcp_if_include_enp4s0f1.log
+ 1048  mpirun -np 2 -host tcn474,tcn484 --map-by node --mca pml ob1 --mca btl self,tcp ./IMB-MPI1 PingPong > MPI_PingPong_pml_ob1_btl_self_tcp.log
+ 1049  mpirun -np 2 -host tcn474,tcn484 --map-by node ./IMB-MPI1 PingPong > MPI_PingPong.log
