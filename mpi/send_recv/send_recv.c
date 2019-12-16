@@ -5,6 +5,7 @@ Source code link: https://github.com/wesleykendall/mpitutorial/blob/gh-pages/tut
 */
 
 #include <mpi.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,19 @@ typedef struct
 } Record;
 
 const int32_t MB = 1 << 20;
+
+bool verify_received_data(Record *recv_data, int num_of_records)
+{
+  int i;
+  for (i = 0; i < num_of_records; i++)
+  {
+    if (recv_data[i].a + recv_data[i].b != 0 || recv_data[i].c != INT64_MIN || recv_data[i].d != INT64_MAX)
+    {
+      return false;
+    }
+  }
+  return true;
+}
 
 int main(int argc, char **argv)
 {
@@ -46,6 +60,7 @@ int main(int argc, char **argv)
   MPI_Get_processor_name(processor_name, &name_len);
 
   // Construct MPI's version of type Record
+  // TODO: add some comments here to explain MPI_Type_create_struct
   int count = 4;
   int block_lengths[4] = {1, 1, 1, 1};
   MPI_Aint offsets[4];
@@ -66,11 +81,10 @@ int main(int argc, char **argv)
   int MPI_Record_size;
   MPI_Type_size(MPI_Record, &MPI_Record_size);
 
-  // Will be used for timing
-  double t1, t2;
+  double start_time, end_time;
 
-  char *temp = argv[1];
-  int num_of_records = atoi(temp);
+  char *num_of_records_str = argv[1];
+  int num_of_records = atoi(num_of_records_str);
 
   if (rank == DATA_SOURCE_RANK)
   {
@@ -79,10 +93,10 @@ int main(int argc, char **argv)
     int i;
     for (i = 0; i < num_of_records; i++)
     {
-      src_arr[i] = (Record){42, 42, 42, 42};
+      src_arr[i] = (Record){i, -i, INT64_MIN, INT64_MAX};
     }
 
-    t1 = MPI_Wtime();
+    start_time = MPI_Wtime();
 
     MPI_Send(
         /* data         = */ src_arr,
@@ -92,15 +106,15 @@ int main(int argc, char **argv)
         /* tag          = */ 0,
         /* communicator = */ MPI_COMM_WORLD);
 
-    t2 = MPI_Wtime();
+    end_time = MPI_Wtime();
 
-    printf("Sending took %f on %s \n", t2 - t1, processor_name);
+    printf("Sending took %f on %s \n", end_time - start_time, processor_name);
     printf("Sent data in bytes %d \n", num_of_records * MPI_Record_size);
-    printf("Speed of data sending %f (MB/s)\n", num_of_records * MPI_Record_size / MB / (t2 - t1));
+    printf("Speed of data sending %f (MB/s)\n", num_of_records * MPI_Record_size / MB / (end_time - start_time));
 
     FILE *fp;
     fp = fopen("MPI_send_recv_records_SEND.log", "a");
-    fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / (t2 - t1));
+    fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / (end_time - start_time));
     fclose(fp);
   }
 
@@ -108,7 +122,7 @@ int main(int argc, char **argv)
   {
     Record *recv_arr = malloc(num_of_records * sizeof(Record));
 
-    t1 = MPI_Wtime();
+    start_time = MPI_Wtime();
 
     MPI_Recv(
         /* data         = */ recv_arr,
@@ -119,24 +133,24 @@ int main(int argc, char **argv)
         /* communicator = */ MPI_COMM_WORLD,
         /* status       = */ MPI_STATUS_IGNORE);
 
-    t2 = MPI_Wtime();
+    end_time = MPI_Wtime();
 
-    printf("Receiving took %f on %s \n", t2 - t1, processor_name);
+    printf("Receiving took %f on %s \n", end_time - start_time, processor_name);
 
-    if (recv_arr[num_of_records - 1].c == 42)
+    if (verify_received_data(recv_arr, num_of_records) == true)
     {
-      printf("Verification of sample data: pass \n");
+      printf("Verification of data: pass \n");
       printf("Received data in bytes %d \n", num_of_records * MPI_Record_size);
-      printf("Speed of data receiving %f (MB/s)\n", num_of_records * MPI_Record_size / MB / (t2 - t1));
+      printf("Speed of data receiving %f (MB/s)\n", num_of_records * MPI_Record_size / MB / (end_time - start_time));
 
       FILE *fp;
       fp = fopen("MPI_send_recv_records_RECV.log", "a");
-      fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / (t2 - t1));
+      fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / (end_time - start_time));
       fclose(fp);
     }
     else
     {
-      printf("Verification of sample data: failed \n");
+      printf("Verification of data: failed \n");
     }
   }
 
