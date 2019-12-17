@@ -59,8 +59,12 @@ int main(int argc, char **argv)
   int name_len;
   MPI_Get_processor_name(processor_name, &name_len);
 
-  // Construct MPI's version of type Record
-  // TODO: add some comments here to explain MPI_Type_create_struct
+  /*
+  Construct MPI's version of type Record
+  https://www.mpich.org/static/docs/latest/www3/MPI_Type_create_struct.html
+  Visualization: https://www.semanticscholar.org/paper/Sur-la-validation-num%C3%A9rique-des-codes-de-calcul-(On-Montan/a008511e0c2be66735afc0f312a7b1df9d6122af/figure/4
+  */
+
   int count = 4;
   int block_lengths[4] = {1, 1, 1, 1};
   MPI_Aint offsets[4];
@@ -98,6 +102,12 @@ int main(int argc, char **argv)
 
     time -= MPI_Wtime();
 
+    /*
+    Current understanding of third argument datatype (might be wrong): this is used to INTERPRET the data instead of MANIPULATING the data
+    There is MPI_PACK in MPI for serialization:
+    https://www.mpich.org/static/docs/latest/www3/MPI_Pack.html
+    */
+
     MPI_Send(
         /* data         = */ src_arr,
         /* count        = */ num_of_records,
@@ -108,7 +118,7 @@ int main(int argc, char **argv)
 
     time += MPI_Wtime();
 
-    printf("Sending took %f on %s \n", time, processor_name);
+    printf("Sending took %f second(s) on %s \n", time, processor_name);
     printf("Sent data in bytes %d \n", num_of_records * MPI_Record_size);
     printf("Speed of data sending %f (MB/s)\n", num_of_records * MPI_Record_size / MB / time);
 
@@ -135,7 +145,7 @@ int main(int argc, char **argv)
 
     time += MPI_Wtime();
 
-    printf("Receiving took %f on %s \n", time, processor_name);
+    printf("Receiving took %f second(s) on %s \n", time, processor_name);
 
     if (verify_received_data(recv_arr, num_of_records) == true)
     {
