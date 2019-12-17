@@ -81,7 +81,7 @@ int main(int argc, char **argv)
   int MPI_Record_size;
   MPI_Type_size(MPI_Record, &MPI_Record_size);
 
-  double start_time, end_time;
+  double time = 0.0;
 
   char *num_of_records_str = argv[1];
   int num_of_records = atoi(num_of_records_str);
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
       src_arr[i] = (Record){i, -i, INT64_MIN, INT64_MAX};
     }
 
-    start_time = MPI_Wtime();
+    time -= MPI_Wtime();
 
     MPI_Send(
         /* data         = */ src_arr,
@@ -106,15 +106,15 @@ int main(int argc, char **argv)
         /* tag          = */ 0,
         /* communicator = */ MPI_COMM_WORLD);
 
-    end_time = MPI_Wtime();
+    time += MPI_Wtime();
 
-    printf("Sending took %f on %s \n", end_time - start_time, processor_name);
+    printf("Sending took %f on %s \n", time, processor_name);
     printf("Sent data in bytes %d \n", num_of_records * MPI_Record_size);
-    printf("Speed of data sending %f (MB/s)\n", num_of_records * MPI_Record_size / MB / (end_time - start_time));
+    printf("Speed of data sending %f (MB/s)\n", num_of_records * MPI_Record_size / MB / time);
 
     FILE *fp;
     fp = fopen("MPI_send_recv_records_SEND.log", "a");
-    fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / (end_time - start_time));
+    fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / time);
     fclose(fp);
   }
 
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
   {
     Record *recv_arr = malloc(num_of_records * sizeof(Record));
 
-    start_time = MPI_Wtime();
+    time -= MPI_Wtime();
 
     MPI_Recv(
         /* data         = */ recv_arr,
@@ -133,19 +133,19 @@ int main(int argc, char **argv)
         /* communicator = */ MPI_COMM_WORLD,
         /* status       = */ MPI_STATUS_IGNORE);
 
-    end_time = MPI_Wtime();
+    time += MPI_Wtime();
 
-    printf("Receiving took %f on %s \n", end_time - start_time, processor_name);
+    printf("Receiving took %f on %s \n", time, processor_name);
 
     if (verify_received_data(recv_arr, num_of_records) == true)
     {
       printf("Verification of data: pass \n");
       printf("Received data in bytes %d \n", num_of_records * MPI_Record_size);
-      printf("Speed of data receiving %f (MB/s)\n", num_of_records * MPI_Record_size / MB / (end_time - start_time));
+      printf("Speed of data receiving %f (MB/s)\n", num_of_records * MPI_Record_size / MB / time);
 
       FILE *fp;
       fp = fopen("MPI_send_recv_records_RECV.log", "a");
-      fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / (end_time - start_time));
+      fprintf(fp, "%d \t %f \n", num_of_records, num_of_records * MPI_Record_size / MB / time);
       fclose(fp);
     }
     else
