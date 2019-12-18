@@ -1,6 +1,27 @@
 #include <stdlib.h>
 #include <arrow-glib/arrow-glib.h>
 
+const int num_of_records = 1000;
+
+GList *build_array_and_append_to_list(const int array_length, GList *list_of_arrays)
+{
+    gboolean success = TRUE;
+    GError *error = NULL;
+
+    GArrowInt64ArrayBuilder *array_builder = garrow_int64_array_builder_new();
+
+    int i = 0;
+    while (success && i < array_length)
+    {
+        success = garrow_int64_array_builder_append_value(array_builder, i, &error);
+        i++;
+    }
+
+    GArrowArray *col = garrow_array_builder_finish(GARROW_ARRAY_BUILDER(array_builder), &error);
+    list_of_arrays = g_list_append(list_of_arrays, col);
+    return list_of_arrays;
+}
+
 int main(int argc, char **argv)
 {
     GError *error = NULL;
@@ -8,28 +29,26 @@ int main(int argc, char **argv)
     // Cast GArrowInt64DataType* to GArrowDataType* to make the compiler not complain
     GArrowDataType *garrow_int64 = (GArrowDataType *)garrow_int64_data_type_new();
 
-    GArrowField *field_a = garrow_field_new("a", garrow_int64);
-    GArrowField *field_b = garrow_field_new("b", garrow_int64);
-    GArrowField *field_c = garrow_field_new("c", garrow_int64);
-    GArrowField *field_d = garrow_field_new("d", garrow_int64);
-
     GList *fields = NULL;
-    fields = g_list_append(fields, field_a);
-    fields = g_list_append(fields, field_b);
-    fields = g_list_append(fields, field_c);
-    fields = g_list_append(fields, field_d);
+    fields = g_list_append(fields, garrow_field_new("a", garrow_int64));
+    fields = g_list_append(fields, garrow_field_new("b", garrow_int64));
+    fields = g_list_append(fields, garrow_field_new("c", garrow_int64));
+    fields = g_list_append(fields, garrow_field_new("d", garrow_int64));
 
     GArrowSchema *schema = garrow_schema_new(fields);
 
     gchar *schema_str = garrow_schema_to_string(schema);
     g_print("Schema: \n%s \n", schema_str);
 
-    guint n_fields = garrow_schema_n_fields(schema);
-    g_print("Number of fields in the schema: %d \n", n_fields);
+    GList *list_of_columns = NULL;
+    const int num_cols = 4;
+    int i;
+    for (i = 0; i < num_cols; i++)
+    {
+        list_of_columns = build_array_and_append_to_list(num_of_records, list_of_columns);
+    }
 
-    GArrowRecordBatchBuilder *record_batch_builder = garrow_record_batch_builder_new(schema, &error);
-
-    GArrowRecordBatch *record_batch = garrow_record_batch_builder_flush(record_batch_builder, &error);
+    GArrowRecordBatch *record_batch = garrow_record_batch_new(schema, num_of_records, list_of_columns, &error);
 
     gchar *record_batch_str = garrow_record_batch_to_string(record_batch, &error);
     g_print("Record Batch: \n%s \n", record_batch_str);
