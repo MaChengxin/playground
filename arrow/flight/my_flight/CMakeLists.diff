@@ -1,0 +1,23 @@
+diff --git a/cpp/src/arrow/flight/CMakeLists.txt b/cpp/src/arrow/flight/CMakeLists.txt
+index d0f4f3cf6..76e86bf66 100644
+--- a/cpp/src/arrow/flight/CMakeLists.txt
++++ b/cpp/src/arrow/flight/CMakeLists.txt
+@@ -187,10 +187,18 @@ if(ARROW_BUILD_BENCHMARKS)
+   target_link_libraries(arrow-flight-perf-server ${ARROW_FLIGHT_TEST_LINK_LIBS}
+                         ${GFLAGS_LIBRARIES} GTest::GTest)
+ 
++  add_executable(my-flight-server my_flight_server.cc)
++  target_link_libraries(my-flight-server ${ARROW_FLIGHT_TEST_LINK_LIBS}
++                        ${GFLAGS_LIBRARIES} GTest::GTest)
++
+   add_executable(arrow-flight-benchmark flight_benchmark.cc perf.pb.cc)
+   target_link_libraries(arrow-flight-benchmark ${ARROW_FLIGHT_TEST_LINK_LIBS}
+                         ${GFLAGS_LIBRARIES} GTest::GTest)
+ 
++  add_executable(my-flight-client my_flight_client.cc)
++  target_link_libraries(my-flight-client ${ARROW_FLIGHT_TEST_LINK_LIBS}
++                        ${GFLAGS_LIBRARIES} GTest::GTest)
++
+   add_dependencies(arrow-flight-benchmark arrow-flight-perf-server)
+ 
+   add_dependencies(arrow_flight arrow-flight-benchmark)
