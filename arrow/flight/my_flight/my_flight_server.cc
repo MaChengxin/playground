@@ -14,14 +14,22 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       const arrow::flight::ServerCallContext& context,
       std::unique_ptr<arrow::flight::FlightMessageReader> reader,
       std::unique_ptr<arrow::flight::FlightMetadataWriter> writer) override {
+    std::vector<std::shared_ptr<arrow::RecordBatch>> retrieved_chunks;
     arrow::flight::FlightStreamChunk chunk;
     while (true) {
       RETURN_NOT_OK(reader->Next(&chunk));
       if (!chunk.data) break;
+      retrieved_chunks.push_back(chunk.data);
       if (chunk.app_metadata) {
+        std::cout << "chunk.app_metadata" << chunk.app_metadata->ToString() << std::endl;
         RETURN_NOT_OK(writer->WriteMetadata(*chunk.app_metadata));
       }
     }
+
+    auto rb = retrieved_chunks.back();
+    std::cout << "Number of columns of received Record Batch: " << rb->num_columns() << std::endl;
+    std::cout << "Number of rows of received Record Batch: " << rb->num_rows() << std::endl;
+    std::cout << "Schema of received Record Batch: \n" << rb->schema()->ToString() << std::endl;
 
     std::cout << "Server says everything looks OK! " << std::endl;
 

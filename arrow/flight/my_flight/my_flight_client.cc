@@ -78,9 +78,13 @@ int main(int argc, char** argv) {
 
   // TODO: verify the content of the Record Batch
 
+  std::shared_ptr<arrow::RecordBatch> half_record_batch = record_batch->Slice(0, batch_num_rows / 2);
+
+  // std::cout << half_record_batch->column(2)->ToString() << std::endl;
+
   arrow::Status writer_status;
 
-  writer_status = writer->WriteRecordBatch(*record_batch);
+  writer_status = writer->WriteRecordBatch(*half_record_batch);
   writer_status = writer->Close();
 
   if (!writer_status.ok()) {
