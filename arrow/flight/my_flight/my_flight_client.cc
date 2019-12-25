@@ -2,8 +2,7 @@
 Assuming one client and one server now.
 In the final implementation, there will be more nodes and each node is both a client and a
 server (all-to-all communication pattern).
-TODO: sort the Record Batch according to some criteria, send the second half to the
-server
+TODO: Send first half of the Record Batch to one server, and the second half to another
 */
 
 #include <iostream>
@@ -28,10 +27,10 @@ int main(int argc, char** argv) {
   arrow::flight::Location location;
   ABORT_NOT_OK(arrow::flight::Location::ForGrpcTcp(FLAGS_server_host, FLAGS_server_port,
                                                    &location));
-  std::cout << "Server location: " << location.ToString() << std::endl;
+  // std::cout << "Server location: " << location.ToString() << std::endl;
   ABORT_NOT_OK(arrow::flight::FlightClient::Connect(location, &client));
 
-  std::cout << "Goed, connection didn't fail. \n " << std::endl;
+  std::cout << "Goed, connection didn't fail." << std::endl;
 
   std::unique_ptr<arrow::flight::FlightStreamWriter> writer;
   std::unique_ptr<arrow::flight::FlightMetadataReader> reader;
@@ -45,7 +44,7 @@ int main(int argc, char** argv) {
               << std::endl;
   }
 
-  const int64_t batch_num_rows = 100;
+  const int64_t batch_num_rows = 42;
 
   int64_t raw_array[batch_num_rows];
   for (int i = 0; i < batch_num_rows; ++i) {
@@ -76,11 +75,12 @@ int main(int argc, char** argv) {
   std::shared_ptr<arrow::RecordBatch> record_batch =
       arrow::RecordBatch::Make(schema, batch_num_rows, batch_cols);
 
-  // TODO: verify the content of the Record Batch
+  std::cout << "Column 2 of the full Record Batch: \n" << record_batch->column(2)->ToString() << std::endl;
+  std::cout << "Number of columns of the full Record Batch: " << record_batch->num_columns() << std::endl;
+  std::cout << "Number of rows of the full Record Batch: " << record_batch->num_rows() << std::endl;
+  std::cout << "Schema of the full Record Batch: \n" << record_batch->schema()->ToString() << std::endl;
 
   std::shared_ptr<arrow::RecordBatch> half_record_batch = record_batch->Slice(0, batch_num_rows / 2);
-
-  // std::cout << half_record_batch->column(2)->ToString() << std::endl;
 
   arrow::Status writer_status;
 

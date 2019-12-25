@@ -1,9 +1,13 @@
+#include <csignal>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 #include <gflags/gflags.h>
 
+#include "arrow/api.h"
 #include "arrow/flight/api.h"
+#include "arrow/record_batch.h"
 #include "arrow/util/logging.h"
 
 DEFINE_string(server_host, "localhost", "Host where the server is running on");
@@ -17,6 +21,7 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     std::vector<std::shared_ptr<arrow::RecordBatch>> retrieved_chunks;
     arrow::flight::FlightStreamChunk chunk;
     while (true) {
+      // Question: what is the capacity of a chunk?
       RETURN_NOT_OK(reader->Next(&chunk));
       if (!chunk.data) break;
       retrieved_chunks.push_back(chunk.data);
@@ -27,11 +32,10 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     }
 
     auto rb = retrieved_chunks.back();
-    std::cout << "Number of columns of received Record Batch: " << rb->num_columns() << std::endl;
-    std::cout << "Number of rows of received Record Batch: " << rb->num_rows() << std::endl;
-    std::cout << "Schema of received Record Batch: \n" << rb->schema()->ToString() << std::endl;
-
-    std::cout << "Server says everything looks OK! " << std::endl;
+    std::cout << "Column 2 of the received Record Batch: \n" << rb->column(2)->ToString() << std::endl;
+    std::cout << "Number of columns of the received Record Batch: " << rb->num_columns() << std::endl;
+    std::cout << "Number of rows of the received Record Batch: " << rb->num_rows() << std::endl;
+    std::cout << "Schema of the received Record Batch: \n" << rb->schema()->ToString() << std::endl;
 
     return arrow::Status::OK();
   }
