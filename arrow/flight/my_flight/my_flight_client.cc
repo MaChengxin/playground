@@ -1,8 +1,5 @@
 /*
-Assuming one client and one server now.
-In the final implementation, there will be more nodes and each node is both a client and a
-server (all-to-all communication pattern).
-TODO: Send first half of the Record Batch to one server, and the second half to another
+This client is capable of sending record batches to multiple servers.
 */
 
 #include <iostream>
@@ -17,13 +14,15 @@ TODO: Send first half of the Record Batch to one server, and the second half to 
 #include "arrow/record_batch.h"
 #include "arrow/testing/gtest_util.h"
 
-DEFINE_string(server_host, "localhost", "Host where the server is running on");
+DEFINE_string(server_hosts, "localhost", "Host(s) where the server(s) is/are running on");
 DEFINE_int32(server_port, 30103, "The port to connect to");
 
 std::shared_ptr<arrow::RecordBatch> MakeMyRecordBatch(
-    const std::shared_ptr<arrow::Schema>& schema, int64_t batch_num_rows) {
+    const std::shared_ptr<arrow::Schema> &schema, int64_t batch_num_rows)
+{
   int64_t raw_array[batch_num_rows];
-  for (int i = 0; i < batch_num_rows; ++i) {
+  for (int i = 0; i < batch_num_rows; ++i)
+  {
     raw_array[i] = i;
   }
 
@@ -37,12 +36,14 @@ std::shared_ptr<arrow::RecordBatch> MakeMyRecordBatch(
 
   const int32_t num_cols = schema->num_fields();
   arrow::Status make_batch_cols_status;
-  for (int i = 0; i < num_cols; ++i) {
+  for (int i = 0; i < num_cols; ++i)
+  {
     batch_cols.push_back(batch_col);
     make_batch_cols_status = batch_cols.back()->Validate();
   }
 
-  if (!make_batch_cols_status.ok()) {
+  if (!make_batch_cols_status.ok())
+  {
     std::cerr << "Making columns of the Record Batch failed with error: << "
               << make_batch_cols_status.ToString() << std::endl;
   }
@@ -54,7 +55,8 @@ std::shared_ptr<arrow::RecordBatch> MakeMyRecordBatch(
 }
 
 arrow::Status SendToResponsibleNode(std::string host, int port,
-                                    const arrow::RecordBatch& record_batch) {
+                                    const arrow::RecordBatch &record_batch)
+{
   std::unique_ptr<arrow::flight::FlightClient> client;
   arrow::flight::Location location;
   ABORT_NOT_OK(arrow::flight::Location::ForGrpcTcp(host, port, &location));
@@ -65,28 +67,51 @@ arrow::Status SendToResponsibleNode(std::string host, int port,
 
   arrow::Status do_put_status = client->DoPut(arrow::flight::FlightDescriptor{},
                                               record_batch.schema(), &writer, &reader);
-  if (!do_put_status.ok()) {
+  if (!do_put_status.ok())
+  {
     return do_put_status;
   }
 
   arrow::Status writer_status;
   writer_status = writer->WriteRecordBatch(record_batch);
   writer_status = writer->Close();
-  if (!writer_status.ok()) {
+  if (!writer_status.ok())
+  {
     return writer_status;
   }
 
   return arrow::Status::OK();
 }
 
-int main(int argc, char** argv) {
+/* Source:
+ * https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c*/
+std::vector<std::string> SeparateServerHosts(std::string server_hosts)
+{
+  std::string s = server_hosts;
+  std::string delimiter = ",";
+  std::vector<std::string> server_hosts_vec;
+
+  size_t pos = 0;
+  std::string token;
+  while ((pos = s.find(delimiter)) != std::string::npos)
+  {
+    token = s.substr(0, pos);
+    server_hosts_vec.push_back(token);
+    s.erase(0, pos + delimiter.length());
+  }
+  server_hosts_vec.push_back(s);
+  return server_hosts_vec;
+}
+
+int main(int argc, char **argv)
+{
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  std::shared_ptr<arrow::Schema> schema = arrow::schema(
-      {arrow::field("a", arrow::int64()), arrow::field("b", arrow::int64()),
-       arrow::field("c", arrow::int64())});
+  std::shared_ptr<arrow::Schema> schema =
+      arrow::schema({arrow::field("a", arrow::int64()), arrow::field("b", arrow::int64()),
+                     arrow::field("c", arrow::int64())});
 
-  const int64_t batch_num_rows = 100;
+  const int64_t batch_num_rows = 720;
 
   std::shared_ptr<arrow::RecordBatch> record_batch =
       MakeMyRecordBatch(schema, batch_num_rows);
@@ -100,15 +125,23 @@ int main(int argc, char** argv) {
   std::cout << "Schema of the full Record Batch: \n"
             << record_batch->schema()->ToString() << std::endl;
 
-  std::shared_ptr<arrow::RecordBatch> half_record_batch =
-      record_batch->Slice(0, batch_num_rows / 2);
-
   arrow::Status comm_status;
-  comm_status =
-      SendToResponsibleNode(FLAGS_server_host, FLAGS_server_port, *half_record_batch);
-  if (!comm_status.ok()) {
-    std::cerr << "Sending to responsible node failed with error: << "
-              << comm_status.ToString() << std::endl;
+  std::vector<std::string> server_hosts = SeparateServerHosts(FLAGS_server_hosts);
+  int num_rows_to_per_node = batch_num_rows / server_hosts.size();
+  int start_row_index = 0;
+
+  // TODO: make this parallelized
+  for (auto const &server_host : server_hosts)
+  {
+    comm_status = SendToResponsibleNode(
+        server_host, FLAGS_server_port,
+        *record_batch->Slice(start_row_index, num_rows_to_per_node));
+    if (!comm_status.ok())
+    {
+      std::cerr << "Sending to responsible node failed with error: << "
+                << comm_status.ToString() << std::endl;
+    }
+    start_row_index += num_rows_to_per_node;
   }
 
   return 0;
