@@ -1,0 +1,58 @@
+\documentclass{article}
+
+\title{Distributed sorting with Apache Arrow Flight}
+\author{Chengxin Ma}
+\date{\today}
+
+% \usepackage{natbib}
+% \usepackage{graphicx}
+
+\usepackage{hyperref}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report includes the design of a distributed sorting application which utilizes Apache Arrow Flight as the means of communication.
+The experiments demonstrates the performance of the application.
+
+\section{Design}
+\subsection{Test data}
+The final goal of designing this application is to integrate it into a genomic data process pipeline, where data in the SAM format
+\footnote{\url{https://en.wikipedia.org/wiki/SAM_(file_format)\#Format}} is sorted.
+
+From the perspective of sorting, the most interesting fields are \texttt{RNAME} (the name of the references sequence) and \texttt{POS} (position.)
+They together determine the order in which records are sorted.
+
+Thus, to simplify the prototyping work, we design a data structure with three fields: \texttt{GROUP}, \texttt{SEQ}, and \texttt{DATA}.
+Each record belongs to a group and has a sequence number in that group.
+Its data is placed in the \texttt{DATA} field.
+
+\subsection{Software components}
+
+\begin{itemize}
+    \item sorter
+    \item sender
+    \item receiver
+    \item merger
+    \item storage
+\end{itemize}
+
+The \textit{sorter} reads the records from text files into memory.
+The goal of sorting is to put records in the ascending order: records with smaller Group IDs are placed before those with large Group IDs.
+If the Group IDs of two records are the same, the secondary criteria is the sequence number.
+
+The \textit{sorter} puts the sorted records into the \textit{storage}, where records belonging to other nodes will be retrieved and sent away by the \textit{sender}.
+
+We use \textit{Plasma Object Store} as the means of storage.
+
+\section{Experiments}
+
+\section{Next steps}
+
+\appendix
+\section{Known issues}
+\subsection{Building the project}
+
+\end{document}
