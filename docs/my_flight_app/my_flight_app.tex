@@ -55,4 +55,11 @@ We use \textit{Plasma Object Store} as the means of storage.
 \section{Known issues}
 \subsection{Building the project}
 
+On macOS, the \texttt{grpc} library installed via \texttt{Homebrew} (as a dependency of \texttt{apache-arrow}) seems to be problematic.
+The Flight server would incur a segmentation fault due to the current version (stable 1.26.0) of \texttt{grpc}.
+
+We can make use of the existing build system of arrow to build \texttt{grpc} from source.
+(The build system is capable of building any missing dependency from source.)
+This also saves us from building missing dependencies manually on Cartesius.
+
 \end{document}
