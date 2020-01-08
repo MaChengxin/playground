@@ -37,6 +37,8 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     std::cout << "Number of rows of the received Record Batch: " << rb->num_rows() << std::endl;
     std::cout << "Schema of the received Record Batch: \n" << rb->schema()->ToString() << std::endl;
 
+    // TODO: Put the received data into Plasma Object Store
+
     return arrow::Status::OK();
   }
 };

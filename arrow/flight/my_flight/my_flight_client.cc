@@ -20,6 +20,7 @@ This client is capable of sending record batches to multiple servers.
 
 DEFINE_string(server_hosts, "localhost", "Host(s) where the server(s) is/are running on");
 DEFINE_int32(server_port, 30103, "The port to connect to");
+DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
 std::shared_ptr<arrow::RecordBatch> MakeMyRecordBatch(
     const std::shared_ptr<arrow::Schema>& schema, int64_t batch_num_rows) {
@@ -113,7 +114,7 @@ int main(int argc, char** argv) {
   // Start up and connect a Plasma client
   plasma::PlasmaClient client;
   ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
-  plasma::ObjectID object_id = plasma::ObjectID::from_binary("0FF1CE00C0FFEE00BEEF");
+  plasma::ObjectID object_id = plasma::ObjectID::from_binary("0FF1CEC0FFEEBEEF0001");
   plasma::ObjectBuffer object_buffer;
   ARROW_CHECK_OK(client.Get(&object_id, 1, -1, &object_buffer));
 
@@ -131,6 +132,7 @@ int main(int argc, char** argv) {
   status = record_batch_stream_reader->ReadNext(&record_batch);
   /* === End retrieving Record Batch from Plasma === */
 
+if (FLAGS_debug_mode) {
   std::cout << "Schema of the retrieved Record Batch: \n"
             << record_batch->schema()->ToString() << std::endl;
   std::cout << "Number of columns of the retrieved Record Batch: "
@@ -143,6 +145,7 @@ int main(int argc, char** argv) {
             << record_batch->column(1)->ToString() << std::endl;
   std::cout << "Column 2 of the retrieved Record Batch: \n"
             << record_batch->column(2)->ToString() << std::endl;
+}
 
   arrow::Status comm_status;
   std::vector<std::string> server_hosts = SeparateServerHosts(FLAGS_server_hosts);

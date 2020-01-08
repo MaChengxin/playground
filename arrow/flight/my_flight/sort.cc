@@ -16,6 +16,7 @@
 #include <plasma/client.h>
 
 DEFINE_string(input_file, "", "The input file containing data to be sorted.");
+DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
 struct Record {
   std::string group_name;
@@ -86,23 +87,26 @@ std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
   std::shared_ptr<arrow::RecordBatch> record_batch =
       arrow::RecordBatch::Make(schema, records_size, batch_cols);
 
-  std::cout << "Schema of the converted Record Batch: \n"
-            << record_batch->schema()->ToString() << std::endl;
-  std::cout << "Number of columns of the converted Record Batch: "
-            << record_batch->num_columns() << std::endl;
-  std::cout << "Number of rows of the converted Record Batch: "
-            << record_batch->num_rows() << std::endl;
-  std::cout << "Column 0 of the converted Record Batch: \n"
-            << record_batch->column(0)->ToString() << std::endl;
-  std::cout << "Column 1 of the converted Record Batch: \n"
-            << record_batch->column(1)->ToString() << std::endl;
-  std::cout << "Column 2 of the converted Record Batch: \n"
-            << record_batch->column(2)->ToString() << std::endl;
+  if (FLAGS_debug_mode) {
+    std::cout << "Schema of the converted Record Batch: \n"
+              << record_batch->schema()->ToString() << std::endl;
+    std::cout << "Number of columns of the converted Record Batch: "
+              << record_batch->num_columns() << std::endl;
+    std::cout << "Number of rows of the converted Record Batch: "
+              << record_batch->num_rows() << std::endl;
+    std::cout << "Column 0 of the converted Record Batch: \n"
+              << record_batch->column(0)->ToString() << std::endl;
+    std::cout << "Column 1 of the converted Record Batch: \n"
+              << record_batch->column(1)->ToString() << std::endl;
+    std::cout << "Column 2 of the converted Record Batch: \n"
+              << record_batch->column(2)->ToString() << std::endl;
+  }
 
   return record_batch;
 }
 
-plasma::ObjectID PutRecordVectorToPlasmaStore(const std::vector<Record>& records) {
+void PutRecordVectorToPlasmaStore(const std::vector<Record>& records,
+                                  plasma::ObjectID object_id) {
   // Convert vector of records to a Record Batch
   std::shared_ptr<arrow::RecordBatch> record_batch =
       ConvertStructVectorToRecordBatch(records);
@@ -129,7 +133,7 @@ plasma::ObjectID PutRecordVectorToPlasmaStore(const std::vector<Record>& records
   ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
 
   // Create an object with a fixed ObjectID
-  plasma::ObjectID object_id = plasma::ObjectID::from_binary("0FF1CE00C0FFEE00BEEF");
+  // plasma::ObjectID object_id = plasma::ObjectID::from_binary("0FF1CE00C0FFEE00BEEF");
   std::shared_ptr<Buffer> buf;
   ARROW_CHECK_OK(client.Create(object_id, data_size, nullptr, 0, &buf));
 
@@ -152,8 +156,6 @@ plasma::ObjectID PutRecordVectorToPlasmaStore(const std::vector<Record>& records
 
   // Disconnect the client
   ARROW_CHECK_OK(client.Disconnect());
-
-  return object_id;
 }
 
 int main(int argc, char** argv) {
@@ -167,22 +169,45 @@ int main(int argc, char** argv) {
   while (in_file >> group >> seq >> data) {
     records.push_back({group, std::stoi(seq), data});
   }
-
-  std::cout << "Before sorting" << std::endl;
-  for (auto const& rec : records) {
-    std::cout << rec.group_name << "\t" << rec.seq << "\t" << rec.data << std::endl;
+  if (FLAGS_debug_mode) {
+    std::cout << "Before sorting" << std::endl;
+    for (auto const& rec : records) {
+      std::cout << rec.group_name << "\t" << rec.seq << "\t" << rec.data << std::endl;
+    }
   }
 
   // Sort the data
   std::sort(records.begin(), records.end(), CompareRecords);
-  std::cout << "After sorting" << std::endl;
-  for (auto const& rec : records) {
-    std::cout << rec.group_name << "\t" << rec.seq << "\t" << rec.data << std::endl;
+  if (FLAGS_debug_mode) {
+    std::cout << "After sorting" << std::endl;
+    for (auto const& rec : records) {
+      std::cout << rec.group_name << "\t" << rec.seq << "\t" << rec.data << std::endl;
+    }
   }
 
-  // Put into Plasma Object Store, to be used by Flight Client
-  plasma::ObjectID object_id;
-  object_id = PutRecordVectorToPlasmaStore(records);
+  // Partition the records before putting into Plasma
+  auto first = records.begin();
+  auto last = records.end();
+  std::vector<Record> sub_records;
+  for (auto it = records.begin(); it != records.end(); ++it) {
+    if (it->group_name == "GROUP9" && (it + 1)->group_name == "GROUP10") {
+      last = it;
+      sub_records = {first, last + 1};  // seems to be [,)
+      first = last + 1;                 // first of next, +1 of current last
+      PutRecordVectorToPlasmaStore(sub_records,
+                                   plasma::ObjectID::from_binary("0FF1CEC0FFEEBEEF0000"));
+    }
 
-  // TODO: partition the records before putting into Plasma
+    if (it->group_name == "GROUP19" && (it + 1)->group_name == "GROUP20") {
+      last = it;
+      sub_records = {first, last + 1};
+      first = last + 1;
+      PutRecordVectorToPlasmaStore(sub_records,
+                                   plasma::ObjectID::from_binary("0FF1CEC0FFEEBEEF0001"));
+      break;
+    }
+  }
+  sub_records = {first, records.end()};
+  PutRecordVectorToPlasmaStore(sub_records,
+                               plasma::ObjectID::from_binary("0FF1CEC0FFEEBEEF0002"));
 }
