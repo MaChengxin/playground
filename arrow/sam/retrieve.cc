@@ -50,6 +50,13 @@ int main(int argc, char **argv)
         }
     }
 
+    std::cout << "Column 0 of the retrieved Record Batch: \n"
+              << record_batch->column(0)->ToString() << std::endl;
+    std::cout << "Column 1 of the retrieved Record Batch: \n"
+              << record_batch->column(1)->ToString() << std::endl;
+    std::cout << "Column 2 of the retrieved Record Batch: \n"
+              << record_batch->column(2)->ToString() << std::endl;
+
     // Disconnect the client.
     ARROW_CHECK_OK(client.Disconnect());
 }
