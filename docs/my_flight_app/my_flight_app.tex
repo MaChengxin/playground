@@ -14,7 +14,7 @@
 \maketitle
 
 \section{Introduction}
-This report includes the design of a distributed sorting application which utilizes Apache Arrow Flight as the means of communication.
+This report includes the design of a distributed sorting application which utilizes Apache Arrow Flight for communication.
 The experiments demonstrates the performance of the application.
 
 \section{Design}
@@ -22,32 +22,45 @@ The experiments demonstrates the performance of the application.
 The final goal of designing this application is to integrate it into a genomic data process pipeline, where data in the SAM format
 \footnote{\url{https://en.wikipedia.org/wiki/SAM_(file_format)\#Format}} is sorted.
 
-From the perspective of sorting, the most interesting fields are \texttt{RNAME} (the name of the references sequence) and \texttt{POS} (position.)
+From the perspective of sorting, the most interesting fields are \texttt{RNAME} (the name of the references sequence) and \texttt{POS} (position).
 They together determine the order in which records are sorted.
 
 Thus, to simplify the prototyping work, we design a data structure with three fields: \texttt{GROUP}, \texttt{SEQ}, and \texttt{DATA}.
 Each record belongs to a group and has a sequence number in that group.
 Its data is placed in the \texttt{DATA} field.
 
-\subsection{Software components}
+\subsection{Functional decomposition}
 
+The following functional components must be implemented to complete the application.
 \begin{itemize}
     \item sorter
     \item sender
     \item receiver
-    \item merger
-    \item storage
+    \item merger (optional)
+    \item storage (maybe optional)
 \end{itemize}
 
-The \textit{sorter} reads the records from text files into memory.
-The goal of sorting is to put records in the ascending order: records with smaller Group IDs are placed before those with large Group IDs.
+The \textit{sorter} is responsible for sorting the input data in our desired order: records with smaller Group IDs are placed before those with large Group IDs.
 If the Group IDs of two records are the same, the secondary criteria is the sequence number.
 
-The \textit{sorter} puts the sorted records into the \textit{storage}, where records belonging to other nodes will be retrieved and sent away by the \textit{sender}.
+The \textit{sender} and \textit{receiver} are responsible for sending (sorted) data to destination nodes and receiving data from source node respectively.
 
-We use \textit{Plasma Object Store} as the means of storage.
+The \textit{merger} is an optional functional component.
+Its responsibility is to merge the sorted data to a complete set of data.
+It is optional because we could reuse the \textit{sorter} for this task.
+
+\textit{Storage} is needed when we want to temporarily store the data before further processing.
+Instead of writing data to disk, we use \textit{Plasma Object Store} as the means of storage.
+
+\section{Implementation}
 
 \section{Experiments}
+The goal of the experiments is to determine:
+\begin{itemize}
+    \item Does the performance become better if more nodes are used?
+    \item How does the application behave when the volume of data increase?
+    \item Where is the bottleneck of performance?
+\end{itemize}
 
 \section{Next steps}
 
