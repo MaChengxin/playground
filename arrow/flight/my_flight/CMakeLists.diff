@@ -1,23 +1,16 @@
 diff --git a/cpp/src/arrow/flight/CMakeLists.txt b/cpp/src/arrow/flight/CMakeLists.txt
-index d0f4f3cf6..87c055fcb 100644
+index d0f4f3cf6..5426b679a 100644
 --- a/cpp/src/arrow/flight/CMakeLists.txt
 +++ b/cpp/src/arrow/flight/CMakeLists.txt
-@@ -187,10 +187,18 @@ if(ARROW_BUILD_BENCHMARKS)
-   target_link_libraries(arrow-flight-perf-server ${ARROW_FLIGHT_TEST_LINK_LIBS}
-                         ${GFLAGS_LIBRARIES} GTest::GTest)
- 
-+  add_executable(my-flight-server my_flight_server.cc)
-+  target_link_libraries(my-flight-server ${ARROW_FLIGHT_TEST_LINK_LIBS}
-+                        ${GFLAGS_LIBRARIES} GTest::GTest)
-+
-   add_executable(arrow-flight-benchmark flight_benchmark.cc perf.pb.cc)
-   target_link_libraries(arrow-flight-benchmark ${ARROW_FLIGHT_TEST_LINK_LIBS}
-                         ${GFLAGS_LIBRARIES} GTest::GTest)
- 
-+  add_executable(sort-and-send sort_and_send.cc sorter.cc sender.cc)
-+  target_link_libraries(sort-and-send ${ARROW_FLIGHT_TEST_LINK_LIBS}
-+                        ${GFLAGS_LIBRARIES} GTest::GTest plasma_shared)
-+
-   add_dependencies(arrow-flight-benchmark arrow-flight-perf-server)
+@@ -195,3 +195,11 @@ if(ARROW_BUILD_BENCHMARKS)
  
    add_dependencies(arrow_flight arrow-flight-benchmark)
+ endif(ARROW_BUILD_BENCHMARKS)
++
++add_executable(sort-and-send sort_and_send.cc sorter.cc sender.cc)
++target_link_libraries(sort-and-send ${ARROW_FLIGHT_TEST_LINK_LIBS}
++                      ${GFLAGS_LIBRARIES} GTest::GTest plasma_shared)
++
++add_executable(receiver receiver.cc in_memory_storage.cc)
++target_link_libraries(receiver ${ARROW_FLIGHT_TEST_LINK_LIBS}
++                      ${GFLAGS_LIBRARIES} GTest::GTest plasma_shared)

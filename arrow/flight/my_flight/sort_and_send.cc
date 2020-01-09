@@ -8,6 +8,50 @@ DEFINE_string(server_hosts, "localhost", "Host(s) where the server(s) is/are run
 DEFINE_int32(server_port, 30103, "The port to connect to");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
+std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
+    const std::vector<Record>& records) {
+  // Hard-coded for now; can be derived from struct Record
+  std::shared_ptr<arrow::Schema> schema = arrow::schema(
+      {arrow::field("group_name", arrow::utf8()), arrow::field("seq", arrow::int64()),
+       arrow::field("data", arrow::utf8())});
+
+  int64_t records_size = static_cast<int64_t>(records.size());
+
+  std::vector<std::string> group_name_vector;
+  int64_t seq_array[records_size];
+  std::vector<std::string> data_vector;
+
+  for (int64_t i = 0; i < records_size; ++i) {
+    group_name_vector.push_back(records[i].group_name);
+    seq_array[i] = records[i].seq;
+    data_vector.push_back(records[i].data);
+  }
+
+  arrow::StringBuilder group_name_builder;
+  arrow::Int64Builder seq_builder;
+  arrow::StringBuilder data_builder;
+  ABORT_NOT_OK(group_name_builder.AppendValues(group_name_vector));
+  ABORT_NOT_OK(seq_builder.AppendValues(seq_array, records_size));
+  ABORT_NOT_OK(data_builder.AppendValues(data_vector));
+
+  std::shared_ptr<arrow::StringArray> group_name_col;
+  std::shared_ptr<arrow::Int64Array> seq_col;
+  std::shared_ptr<arrow::StringArray> data_col;
+  ABORT_NOT_OK(group_name_builder.Finish(&group_name_col));
+  ABORT_NOT_OK(seq_builder.Finish(&seq_col));
+  ABORT_NOT_OK(data_builder.Finish(&data_col));
+
+  std::vector<std::shared_ptr<arrow::Array>> batch_cols;
+  batch_cols.push_back(group_name_col);
+  batch_cols.push_back(seq_col);
+  batch_cols.push_back(data_col);
+
+  std::shared_ptr<arrow::RecordBatch> record_batch =
+      arrow::RecordBatch::Make(schema, records_size, batch_cols);
+
+  return record_batch;
+}
+
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
