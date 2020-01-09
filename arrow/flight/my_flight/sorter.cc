@@ -1,28 +1,4 @@
-#include <algorithm>
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include <gflags/gflags.h>
-
-#include <arrow/api.h>
-#include <arrow/io/memory.h>
-#include <arrow/ipc/writer.h>
-#include <arrow/record_batch.h>
-#include <arrow/testing/gtest_util.h>
-#include <arrow/util/logging.h>
-#include <plasma/client.h>
-
-DEFINE_string(input_file, "", "The input file containing data to be sorted.");
-DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
-
-struct Record {
-  std::string group_name;
-  int64_t seq;
-  std::string data;
-};
+#include "sorter.h"
 
 bool CompareGroupName(const std::string& a, const std::string& b) {
   std::string group_str = "GROUP";
@@ -87,21 +63,6 @@ std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
   std::shared_ptr<arrow::RecordBatch> record_batch =
       arrow::RecordBatch::Make(schema, records_size, batch_cols);
 
-  if (FLAGS_debug_mode) {
-    std::cout << "Schema of the converted Record Batch: \n"
-              << record_batch->schema()->ToString() << std::endl;
-    std::cout << "Number of columns of the converted Record Batch: "
-              << record_batch->num_columns() << std::endl;
-    std::cout << "Number of rows of the converted Record Batch: "
-              << record_batch->num_rows() << std::endl;
-    std::cout << "Column 0 of the converted Record Batch: \n"
-              << record_batch->column(0)->ToString() << std::endl;
-    std::cout << "Column 1 of the converted Record Batch: \n"
-              << record_batch->column(1)->ToString() << std::endl;
-    std::cout << "Column 2 of the converted Record Batch: \n"
-              << record_batch->column(2)->ToString() << std::endl;
-  }
-
   return record_batch;
 }
 
@@ -156,58 +117,4 @@ void PutRecordVectorToPlasmaStore(const std::vector<Record>& records,
 
   // Disconnect the client
   ARROW_CHECK_OK(client.Disconnect());
-}
-
-int main(int argc, char** argv) {
-  // Read the input file, construct the data to be sorted
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-
-  std::vector<Record> records;
-
-  std::ifstream in_file(FLAGS_input_file);
-  std::string group, seq, data;
-  while (in_file >> group >> seq >> data) {
-    records.push_back({group, std::stoi(seq), data});
-  }
-  if (FLAGS_debug_mode) {
-    std::cout << "Before sorting" << std::endl;
-    for (auto const& rec : records) {
-      std::cout << rec.group_name << "\t" << rec.seq << "\t" << rec.data << std::endl;
-    }
-  }
-
-  // Sort the data
-  std::sort(records.begin(), records.end(), CompareRecords);
-  if (FLAGS_debug_mode) {
-    std::cout << "After sorting" << std::endl;
-    for (auto const& rec : records) {
-      std::cout << rec.group_name << "\t" << rec.seq << "\t" << rec.data << std::endl;
-    }
-  }
-
-  // Partition the records before putting into Plasma
-  auto first = records.begin();
-  auto last = records.end();
-  std::vector<Record> sub_records;
-  for (auto it = records.begin(); it != records.end(); ++it) {
-    if (it->group_name == "GROUP9" && (it + 1)->group_name == "GROUP10") {
-      last = it;
-      sub_records = {first, last + 1};  // seems to be [,)
-      first = last + 1;                 // first of next, +1 of current last
-      PutRecordVectorToPlasmaStore(sub_records,
-                                   plasma::ObjectID::from_binary("0FF1CEC0FFEEBEEF0000"));
-    }
-
-    if (it->group_name == "GROUP19" && (it + 1)->group_name == "GROUP20") {
-      last = it;
-      sub_records = {first, last + 1};
-      first = last + 1;
-      PutRecordVectorToPlasmaStore(sub_records,
-                                   plasma::ObjectID::from_binary("0FF1CEC0FFEEBEEF0001"));
-      break;
-    }
-  }
-  sub_records = {first, records.end()};
-  PutRecordVectorToPlasmaStore(sub_records,
-                               plasma::ObjectID::from_binary("0FF1CEC0FFEEBEEF0002"));
 }
