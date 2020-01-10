@@ -3,7 +3,10 @@
 
 #include "common.h"
 
-void PutRecordBatchToPlasmaStore(const std::shared_ptr<arrow::RecordBatch>& record_batch,
-                                  plasma::ObjectID object_id);
+plasma::ObjectID PutRecordBatchToPlasma(
+    const std::shared_ptr<arrow::RecordBatch>& record_batch);
 
-#endif // IN_MEMORY_STORAGE_H
+std::shared_ptr<arrow::RecordBatch> GetRecordBatchFromPlasma(
+    plasma::ObjectID object_id, plasma::PlasmaClient& client);
+
+#endif  // IN_MEMORY_STORAGE_H

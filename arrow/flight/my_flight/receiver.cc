@@ -1,7 +1,7 @@
 #include <gflags/gflags.h>
 
+#include <arrow/table.h>
 #include "common.h"
-#include "in_memory_storage.h"
 
 DEFINE_string(server_host, "localhost", "Host where the server is running on");
 DEFINE_int32(server_port, 30103, "Server port to listen on");
@@ -25,8 +25,8 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       }
     }
 
-    auto record_batch = retrieved_chunks.back();
     if (FLAGS_debug_mode) {
+      auto record_batch = retrieved_chunks.back();
       std::cout << "Column 2 of the received Record Batch: \n"
                 << record_batch->column(2)->ToString() << std::endl;
       std::cout << "Number of columns of the received Record Batch: "
@@ -37,12 +37,28 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
                 << record_batch->schema()->ToString() << std::endl;
     }
 
-    // Put the received data into Plasma Object Store
-    plasma::ObjectID object_id = plasma::ObjectID::from_binary("0FF1CE00C0FFEE00BEEF");
-    PutRecordBatchToPlasmaStore(record_batch, object_id);
+    std::shared_ptr<arrow::Table> received_data;
+    RETURN_NOT_OK(arrow::Table::FromRecordBatches(retrieved_chunks, &received_data));
+
+    std::cout << "Number of columns of received data: " << received_data->num_columns()
+              << std::endl;
+    std::cout << "Number of rows of received data: " << received_data->num_rows()
+              << std::endl;
+    std::cout << "Schema of received data: \n"
+              << received_data->schema()->ToString() << std::endl;
+
+    do_put_counter += 1;
+    std::cout << "Number of times DoPut has been called for: " << do_put_counter
+              << std::endl;
+
+    all_received_data[std::to_string(do_put_counter)] = received_data;
 
     return arrow::Status::OK();
   }
+
+ private:
+  int do_put_counter = 0;
+  std::unordered_map<std::string, std::shared_ptr<arrow::Table>> all_received_data;
 };
 
 int main(int argc, char** argv) {
