@@ -1,7 +1,7 @@
 #include <gflags/gflags.h>
 
-#include <arrow/table.h>
 #include "common.h"
+#include "in_memory_storage.h"
 
 DEFINE_string(server_host, "localhost", "Host where the server is running on");
 DEFINE_int32(server_port, 30103, "Server port to listen on");
@@ -12,53 +12,55 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       const arrow::flight::ServerCallContext& context,
       std::unique_ptr<arrow::flight::FlightMessageReader> reader,
       std::unique_ptr<arrow::flight::FlightMetadataWriter> writer) override {
-    std::vector<std::shared_ptr<arrow::RecordBatch>> retrieved_chunks;
     arrow::flight::FlightStreamChunk chunk;
     while (true) {
       // Question: what is the capacity of a chunk?
       RETURN_NOT_OK(reader->Next(&chunk));
       if (!chunk.data) break;
-      retrieved_chunks.push_back(chunk.data);
+      received_record_batches.push_back(chunk.data);
       if (chunk.app_metadata) {
         std::cout << "chunk.app_metadata" << chunk.app_metadata->ToString() << std::endl;
         RETURN_NOT_OK(writer->WriteMetadata(*chunk.app_metadata));
       }
     }
 
-    if (FLAGS_debug_mode) {
-      auto record_batch = retrieved_chunks.back();
-      std::cout << "Column 2 of the received Record Batch: \n"
-                << record_batch->column(2)->ToString() << std::endl;
-      std::cout << "Number of columns of the received Record Batch: "
-                << record_batch->num_columns() << std::endl;
-      std::cout << "Number of rows of the received Record Batch: "
-                << record_batch->num_rows() << std::endl;
-      std::cout << "Schema of the received Record Batch: \n"
-                << record_batch->schema()->ToString() << std::endl;
-    }
-
-    std::shared_ptr<arrow::Table> received_data;
-    RETURN_NOT_OK(arrow::Table::FromRecordBatches(retrieved_chunks, &received_data));
-
-    std::cout << "Number of columns of received data: " << received_data->num_columns()
-              << std::endl;
-    std::cout << "Number of rows of received data: " << received_data->num_rows()
-              << std::endl;
-    std::cout << "Schema of received data: \n"
-              << received_data->schema()->ToString() << std::endl;
-
     do_put_counter += 1;
     std::cout << "Number of times DoPut has been called for: " << do_put_counter
               << std::endl;
 
-    all_received_data[std::to_string(do_put_counter)] = received_data;
+    if (do_put_counter == 3) {
+      std::vector<plasma::ObjectID> object_ids;
+      for (auto record_batch : received_record_batches) {
+        auto object_id = PutRecordBatchToPlasma(record_batch);
+        std::cout << "Object ID: " << object_id.hex() << std::endl;
+        object_ids.push_back(object_id);
+      }
+
+      if (FLAGS_debug_mode) {
+        std::cout << "Check if the Record Batches are complete: " << std::endl;
+
+        // Start up and connect a Plasma client
+        plasma::PlasmaClient client;
+        ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
+
+        for (auto object_id : object_ids) {
+          std::shared_ptr<arrow::RecordBatch> record_batch;
+          record_batch = GetRecordBatchFromPlasma(object_id, client);
+          std::cout << "record_batch->column(2)->ToString()"
+                    << record_batch->column(2)->ToString() << std::endl;
+        }
+
+        // Disconnect the client
+        ARROW_CHECK_OK(client.Disconnect());
+      }
+    }
 
     return arrow::Status::OK();
   }
 
  private:
+  std::vector<std::shared_ptr<arrow::RecordBatch>> received_record_batches;
   int do_put_counter = 0;
-  std::unordered_map<std::string, std::shared_ptr<arrow::Table>> all_received_data;
 };
 
 int main(int argc, char** argv) {
