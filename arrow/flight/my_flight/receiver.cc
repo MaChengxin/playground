@@ -1,3 +1,5 @@
+#include <cstdlib>
+
 #include <gflags/gflags.h>
 
 #include "common.h"
@@ -30,13 +32,19 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
 
     if (do_put_counter == 3) {
       std::vector<plasma::ObjectID> object_ids;
+      std::string object_id_strs;
       for (auto record_batch : received_record_batches) {
         auto object_id = PutRecordBatchToPlasma(record_batch);
         std::cout << "Object ID: " << object_id.hex() << std::endl;
         object_ids.push_back(object_id);
+        object_id_strs = object_id_strs + object_id.hex() + " ";
       }
 
+      std::string python_cmd = "python3 retrieve.py " + object_id_strs;
+      std::system(python_cmd.c_str());
+
       if (FLAGS_debug_mode) {
+        std::cout << "object_id_strs: " << object_id_strs <<std::endl;
         std::cout << "Check if the Record Batches are complete: " << std::endl;
 
         // Start up and connect a Plasma client
