@@ -30,7 +30,7 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     std::cout << "Number of times DoPut has been called for: " << do_put_counter
               << std::endl;
 
-    if (do_put_counter == 3) {
+    if (do_put_counter == 3) { // hard-coded for now
       std::vector<plasma::ObjectID> object_ids;
       std::string object_id_strs;
       for (auto record_batch : received_record_batches) {
@@ -40,7 +40,7 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
         object_id_strs = object_id_strs + object_id.hex() + " ";
       }
 
-      std::string python_cmd = "python3 retrieve.py " + object_id_strs;
+      std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
       std::system(python_cmd.c_str());
 
       if (FLAGS_debug_mode) {
@@ -82,7 +82,6 @@ int main(int argc, char** argv) {
   arrow::flight::Location location;
   ARROW_CHECK_OK(
       arrow::flight::Location::ForGrpcTcp("0.0.0.0", FLAGS_server_port, &location));
-  std::cout << "Server location: " << location.ToString() << std::endl;
   arrow::flight::FlightServerOptions options(location);
 
   ARROW_CHECK_OK(my_flight_server->Init(options));

@@ -1,3 +1,6 @@
+""" This file needs to be put with the receive-and-merge executable in the same directory.
+"""
+
 import binascii
 import socket
 import sys

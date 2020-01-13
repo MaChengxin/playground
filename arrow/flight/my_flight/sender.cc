@@ -1,38 +1,5 @@
 #include "sender.h"
 
-std::shared_ptr<arrow::RecordBatch> MakeMyRecordBatch(
-    const std::shared_ptr<arrow::Schema>& schema, int64_t batch_num_rows) {
-  int64_t raw_array[batch_num_rows];
-  for (int i = 0; i < batch_num_rows; ++i) {
-    raw_array[i] = i;
-  }
-
-  arrow::Int64Builder builder;
-  ABORT_NOT_OK(builder.AppendValues(raw_array, batch_num_rows, nullptr));
-
-  std::shared_ptr<arrow::Int64Array> batch_col;
-  ABORT_NOT_OK(builder.Finish(&batch_col));
-
-  std::vector<std::shared_ptr<arrow::Array>> batch_cols;
-
-  const int32_t num_cols = schema->num_fields();
-  arrow::Status make_batch_cols_status;
-  for (int i = 0; i < num_cols; ++i) {
-    batch_cols.push_back(batch_col);
-    make_batch_cols_status = batch_cols.back()->Validate();
-  }
-
-  if (!make_batch_cols_status.ok()) {
-    std::cerr << "Making columns of the Record Batch failed with error: << "
-              << make_batch_cols_status.ToString() << std::endl;
-  }
-
-  std::shared_ptr<arrow::RecordBatch> record_batch =
-      arrow::RecordBatch::Make(schema, batch_num_rows, batch_cols);
-
-  return record_batch;
-}
-
 arrow::Status SendToResponsibleNode(std::string host, int port,
                                     const arrow::RecordBatch& record_batch) {
   std::unique_ptr<arrow::flight::FlightClient> client;
@@ -76,6 +43,3 @@ std::vector<std::string> SeparateServerHosts(std::string server_hosts) {
   server_hosts_vec.push_back(s);
   return server_hosts_vec;
 }
-
-void GetRecordBatchFromPlasma(plasma::ObjectID object_id,
-                              std::shared_ptr<arrow::RecordBatch>& record_batch) {}
