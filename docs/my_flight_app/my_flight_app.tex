@@ -29,6 +29,11 @@ Thus, to simplify the prototyping work, we design a data structure with three fi
 Each record belongs to a group and has a sequence number in that group.
 Its data is placed in the \texttt{DATA} field.
 
+Here is an example input file: \href{https://github.com/MaChengxin/playground/blob/master/arrow/flight/my_flight/data/nums_on_node_0.txt}{\textit{Input records on Node 0}},
+and here is an example file containing expected sorted records: \href{https://github.com/MaChengxin/playground/blob/master/arrow/flight/my_flight/data/expected_nums_on_node_0.txt}{\textit{Expected sorted records on Node 0}}.
+\footnote{The files are misnamed. It should be \textit{records} instead of \textit{nums}.}
+Note that we do not necessarily need to write the output into files.
+
 \subsection{Functional decomposition}
 
 The following functional components must be implemented to complete the application.
@@ -36,7 +41,7 @@ The following functional components must be implemented to complete the applicat
     \item sorter
     \item sender
     \item receiver
-    \item merger (optional)
+    \item merger
     \item storage (maybe optional)
 \end{itemize}
 
@@ -45,14 +50,19 @@ If the Group IDs of two records are the same, the secondary criteria is the sequ
 
 The \textit{sender} and \textit{receiver} are responsible for sending (sorted) data to destination nodes and receiving data from source node respectively.
 
-The \textit{merger} is an optional functional component.
-Its responsibility is to merge the sorted data to a complete set of data.
-It is optional because we could reuse the \textit{sorter} for this task.
+The responsibility of the \textit{merger} is to merge the sorted data to a complete and sorted set of data.
 
 \textit{Storage} is needed when we want to temporarily store the data before further processing.
-Instead of writing data to disk, we use \textit{Plasma Object Store} as the means of storage.
 
 \section{Implementation}
+There are a few dependencies among the functional components.
+The \textit{sorter} and the \textit{sender} has a clear dependency: \textit{sender} must wait until \textit{sorter} has sorted the input, or partitioned the inputs to groups with known destination.
+The \textit{merger} must wait until the \textit{receiver} has got all the data.
+The \textit{storage} functional component must be ready before the \textit{receiver} starts to work, otherwise \textit{receiver} would have nowhere to put the data for further process.
+Thus, the current implementation runs three processes on each node: \textit{plasma-store-server}
+\footnote{Instead of writing data to disk, we use \textit{Plasma Object Store} as the means of storage.}, 
+\textit{receive-and-merge}, and \textit{sort-and-send}.
+\footnote{These processes have to be started in the order they were introduced above.}
 
 \section{Experiments}
 The goal of the experiments is to determine:
@@ -61,6 +71,10 @@ The goal of the experiments is to determine:
     \item How does the application behave when the volume of data increase?
     \item Where is the bottleneck of performance?
 \end{itemize}
+
+\subsection{Input size fixed, changing the number of nodes in use}
+
+\subsection{Number of nodes in use fixed, changing the input size}
 
 \section{Next steps}
 
