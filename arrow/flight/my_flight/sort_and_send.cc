@@ -1,4 +1,5 @@
 #include <gflags/gflags.h>
+#include <list>
 
 #include "sender.h"
 #include "sorter.h"
@@ -79,25 +80,26 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Partition the records
+  // Partition the sorted records
+  std::list<std::string> boundaries{"GROUP9", "GROUP19"};
   auto first = records.begin();
   auto last = records.end();
   std::vector<Record> temp_rec_vec;
   std::vector<std::vector<Record>> sub_records;
+  std::string cur_bound = boundaries.front();
+  boundaries.pop_front();
   for (auto it = records.begin(); it != records.end(); ++it) {
-    if (it->group_name == "GROUP9" && (it + 1)->group_name == "GROUP10") {
+    if (it->group_name == cur_bound && (it + 1)->group_name != cur_bound) {
       last = it;
       temp_rec_vec = {first, last + 1};  // seems to be [,)
       sub_records.push_back(temp_rec_vec);
       first = last + 1;  // first of next, +1 of current last
-    }
-
-    if (it->group_name == "GROUP19" && (it + 1)->group_name == "GROUP20") {
-      last = it;
-      temp_rec_vec = {first, last + 1};
-      sub_records.push_back(temp_rec_vec);
-      first = last + 1;
-      break;
+      if (boundaries.size() != 0) {
+        cur_bound = boundaries.front();
+        boundaries.pop_front();
+      } else {
+        break;
+      }
     }
   }
   temp_rec_vec = {first, records.end()};
