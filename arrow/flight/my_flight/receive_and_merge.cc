@@ -15,8 +15,9 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       const arrow::flight::ServerCallContext& context,
       std::unique_ptr<arrow::flight::FlightMessageReader> reader,
       std::unique_ptr<arrow::flight::FlightMetadataWriter> writer) override {
-    arrow::flight::FlightStreamChunk chunk;
+    auto t1 = std::chrono::high_resolution_clock::now();
 
+    arrow::flight::FlightStreamChunk chunk;
     // Put the received chunks together
     while (true) {  // Assume that there might be multiple chunks in one DoPut
       // Question: what is the capacity of a chunk?
@@ -32,9 +33,18 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     do_put_counter_ += 1;
     std::cout << "Number of times DoPut has been called for: " << do_put_counter_
               << std::endl;
-
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    std::cout << "Duration (microseconds) of receiveing the records: " << duration
+              << std::endl;
     if (do_put_counter_ == FLAGS_num_nodes) {
+      t1 = std::chrono::high_resolution_clock::now();
       ProcessReceivedData();
+      t2 = std::chrono::high_resolution_clock::now();
+      duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+      std::cout << "Duration (microseconds) of ProcessReceivedData: " << duration
+                << std::endl;
     }
 
     return arrow::Status::OK();
@@ -47,15 +57,29 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
   void ProcessReceivedData() {
     std::vector<plasma::ObjectID> object_ids;
     std::string object_id_strs;
+    auto t1 = std::chrono::high_resolution_clock::now();
     for (auto record_batch : received_record_batches_) {
       auto object_id = PutRecordBatchToPlasma(record_batch);
       std::cout << "Object ID: " << object_id.hex() << std::endl;
       object_ids.push_back(object_id);
       object_id_strs = object_id_strs + object_id.hex() + " ";
     }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    std::cout << "Within ProcessReceivedData: duration (microseconds) of putting Records "
+                 "to Plasma: "
+              << duration << std::endl;
 
     std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
+    t1 = std::chrono::high_resolution_clock::now();
     std::system(python_cmd.c_str());
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    std::cout << "Within ProcessReceivedData: duration (microseconds) of using Python to "
+                 "retrieve data from Plasma "
+                 "and sort it: "
+              << duration << std::endl;
 
     if (FLAGS_debug_mode) {
       PrintRecordBatchesInPlasma(object_ids);

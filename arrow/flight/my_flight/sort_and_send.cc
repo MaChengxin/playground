@@ -56,8 +56,12 @@ std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  auto t1 = std::chrono::high_resolution_clock::now();
+  auto t2 = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 
   // Read the input file, construct the data to be sorted
+  t1 = std::chrono::high_resolution_clock::now();
   std::vector<Record> records;
 
   std::ifstream in_file(FLAGS_input_file);
@@ -65,6 +69,9 @@ int main(int argc, char** argv) {
   while (in_file >> group >> seq >> data) {
     records.push_back({group, std::stoi(seq), data});
   }
+  t2 = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+  std::cout << "Duration (microseconds) of reading the inputs: " << duration << std::endl;
   if (FLAGS_debug_mode) {
     std::cout << "Before sorting" << std::endl;
     for (auto const& rec : records) {
@@ -73,7 +80,11 @@ int main(int argc, char** argv) {
   }
 
   // Sort the data
+  t1 = std::chrono::high_resolution_clock::now();
   std::sort(records.begin(), records.end(), CompareRecords);
+  t2 = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+  std::cout << "Duration (microseconds) of sorting the inputs: " << duration << std::endl;
   if (FLAGS_debug_mode) {
     std::cout << "After sorting" << std::endl;
     for (auto const& rec : records) {
@@ -82,6 +93,7 @@ int main(int argc, char** argv) {
   }
 
   // Partition the sorted records
+  t1 = std::chrono::high_resolution_clock::now();
   std::list<std::string> boundaries =
       SeparatePartitionBoundaries(FLAGS_partition_boundaries);
   auto first = records.begin();
@@ -106,6 +118,10 @@ int main(int argc, char** argv) {
   }
   temp_rec_vec = {first, records.end()};
   sub_records.push_back(temp_rec_vec);
+  t2 = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+  std::cout << "Duration (microseconds) of partitioning the sorted records: " << duration
+            << std::endl;
 
   // Send away the sub records
   arrow::Status comm_status;
@@ -114,10 +130,16 @@ int main(int argc, char** argv) {
   // TODO: make this parallelized
   int i = 0;
   for (auto const& server_host : server_hosts) {
+    t1 = std::chrono::high_resolution_clock::now();
     comm_status =
         SendToResponsibleNode(server_host, FLAGS_server_port,
                               *ConvertStructVectorToRecordBatch(sub_records[i]));
     i = i + 1;
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+
+    std::cout << "Duration (microseconds) of SendToResponsibleNode: " << duration
+              << " (Number of times this function be called: " << i << ")" << std::endl;
     if (!comm_status.ok()) {
       std::cerr << "Sending to responsible node failed with error: "
                 << comm_status.ToString() << std::endl;

@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include <algorithm>
+#include <chrono>
 #include <csignal>
 #include <fstream>
 #include <iostream>
@@ -26,4 +27,4 @@ struct Record {
   std::string data;
 };
 
-#endif // COMMON_H
+#endif  // COMMON_H
