@@ -43,3 +43,19 @@ std::vector<std::string> SeparateServerHosts(std::string server_hosts) {
   server_hosts_vec.push_back(s);
   return server_hosts_vec;
 }
+
+std::list<std::string> SeparatePartitionBoundaries(std::string boundaries) {
+  std::string s = boundaries;
+  std::string delimiter = ",";
+  std::list<std::string> boundaries_lst;
+
+  size_t pos = 0;
+  std::string token;
+  while ((pos = s.find(delimiter)) != std::string::npos) {
+    token = s.substr(0, pos);
+    boundaries_lst.push_back(token);
+    s.erase(0, pos + delimiter.length());
+  }
+  boundaries_lst.push_back(s);
+  return boundaries_lst;
+}

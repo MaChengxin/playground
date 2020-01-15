@@ -1,5 +1,4 @@
 #include <gflags/gflags.h>
-#include <list>
 
 #include "sender.h"
 #include "sorter.h"
@@ -7,6 +6,8 @@
 DEFINE_string(input_file, "", "The input file containing data to be sorted.");
 DEFINE_string(server_hosts, "localhost", "Host(s) where the server(s) is/are running on");
 DEFINE_int32(server_port, 30103, "The port to connect to");
+DEFINE_string(partition_boundaries, "GROUP9,GROUP19",
+              "The boundaries of the partitioned records");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
 std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
@@ -81,7 +82,8 @@ int main(int argc, char** argv) {
   }
 
   // Partition the sorted records
-  std::list<std::string> boundaries{"GROUP9", "GROUP19"};
+  std::list<std::string> boundaries =
+      SeparatePartitionBoundaries(FLAGS_partition_boundaries);
   auto first = records.begin();
   auto last = records.end();
   std::vector<Record> temp_rec_vec;
