@@ -1,3 +1,4 @@
+#include <boost/asio/ip/host_name.hpp>
 #include <cstdlib>
 
 #include <gflags/gflags.h>
@@ -15,7 +16,17 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       const arrow::flight::ServerCallContext& context,
       std::unique_ptr<arrow::flight::FlightMessageReader> reader,
       std::unique_ptr<arrow::flight::FlightMetadataWriter> writer) override {
+    auto host_name = boost::asio::ip::host_name();
+    std::ofstream log_file;
+    log_file.open(host_name + "_r.log", std::ios_base::app);
+
+    do_put_counter_ += 1;
+
     auto t1 = std::chrono::high_resolution_clock::now();
+    std::time_t log_time =
+        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    log_file << "Number of times DoPut has been called for: " << do_put_counter_
+             << ", at: " << std::ctime(&log_time);
 
     arrow::flight::FlightStreamChunk chunk;
     // Put the received chunks together
@@ -29,10 +40,10 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
         RETURN_NOT_OK(writer->WriteMetadata(*chunk.app_metadata));
       }
     }
+    log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    log_file << "In DoPut: number of times data received from others: " << do_put_counter_
+             << ", at: " << std::ctime(&log_time);
 
-    do_put_counter_ += 1;
-    std::cout << "Number of times DoPut has been called for: " << do_put_counter_
-              << std::endl;
     auto t2 = std::chrono::high_resolution_clock::now();
     auto duration =
         std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
@@ -40,7 +51,11 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
               << std::endl;
     if (do_put_counter_ == FLAGS_num_nodes) {
       t1 = std::chrono::high_resolution_clock::now();
+      log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+      log_file << "ProcessReceivedData started at: " << std::ctime(&log_time);
       ProcessReceivedData();
+      log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+      log_file << "ProcessReceivedData finished at: " << std::ctime(&log_time);
       t2 = std::chrono::high_resolution_clock::now();
       duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
       std::cout << "Duration (microseconds) of ProcessReceivedData: " << duration
@@ -107,6 +122,12 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  auto host_name = boost::asio::ip::host_name();
+  std::ofstream log_file;
+  log_file.open(host_name + "_r.log", std::ios_base::app);
+  std::time_t log_time =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  log_file << "receive-and-merge started at: " << std::ctime(&log_time);
 
   std::unique_ptr<MyFlightServer> my_flight_server;
   my_flight_server.reset(new MyFlightServer);

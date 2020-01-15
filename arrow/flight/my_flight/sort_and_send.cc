@@ -1,4 +1,5 @@
 #include <gflags/gflags.h>
+#include <boost/asio/ip/host_name.hpp>
 
 #include "sender.h"
 #include "sorter.h"
@@ -56,12 +57,20 @@ std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  auto host_name = boost::asio::ip::host_name();
+  std::ofstream log_file;
+  log_file.open(host_name + "_s.log", std::ios_base::app);
+  std::time_t log_time =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  log_file << "sort-and-send started at: " << std::ctime(&log_time);
+
   auto t1 = std::chrono::high_resolution_clock::now();
   auto t2 = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 
   // Read the input file, construct the data to be sorted
-  t1 = std::chrono::high_resolution_clock::now();
+  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  log_file << "Reading from input file started at: " << std::ctime(&log_time);
   std::vector<Record> records;
 
   std::ifstream in_file(FLAGS_input_file);
@@ -69,9 +78,8 @@ int main(int argc, char** argv) {
   while (in_file >> group >> seq >> data) {
     records.push_back({group, std::stoi(seq), data});
   }
-  t2 = std::chrono::high_resolution_clock::now();
-  duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-  std::cout << "Duration (microseconds) of reading the inputs: " << duration << std::endl;
+  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  log_file << "Reading from input file finished at: " << std::ctime(&log_time);
   if (FLAGS_debug_mode) {
     std::cout << "Before sorting" << std::endl;
     for (auto const& rec : records) {
@@ -80,11 +88,11 @@ int main(int argc, char** argv) {
   }
 
   // Sort the data
-  t1 = std::chrono::high_resolution_clock::now();
+  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  log_file << "Sorting started at: " << std::ctime(&log_time);
   std::sort(records.begin(), records.end(), CompareRecords);
-  t2 = std::chrono::high_resolution_clock::now();
-  duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-  std::cout << "Duration (microseconds) of sorting the inputs: " << duration << std::endl;
+  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  log_file << "Sorting finished at: " << std::ctime(&log_time);
   if (FLAGS_debug_mode) {
     std::cout << "After sorting" << std::endl;
     for (auto const& rec : records) {
@@ -131,10 +139,14 @@ int main(int argc, char** argv) {
   int i = 0;
   for (auto const& server_host : server_hosts) {
     t1 = std::chrono::high_resolution_clock::now();
+    log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    log_file << "Started sending to " << server_host << " at: " << std::ctime(&log_time);
     comm_status =
         SendToResponsibleNode(server_host, FLAGS_server_port,
                               *ConvertStructVectorToRecordBatch(sub_records[i]));
     i = i + 1;
+    log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    log_file << "Finished sending to " << server_host << " at: " << std::ctime(&log_time);
     t2 = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 
@@ -145,6 +157,9 @@ int main(int argc, char** argv) {
                 << comm_status.ToString() << std::endl;
     }
   }
+
+  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  log_file << "sort-and-send finished at: " << std::ctime(&log_time);
 
   return 0;
 }
