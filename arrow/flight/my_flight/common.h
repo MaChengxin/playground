@@ -28,4 +28,6 @@ struct Record {
   std::string data;
 };
 
+std::string PrettyPrintCurrentTime();
+
 #endif  // COMMON_H

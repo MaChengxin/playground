@@ -9,25 +9,14 @@ arrow::Status SendToResponsibleNode(std::string host, int port,
 
   std::unique_ptr<arrow::flight::FlightStreamWriter> writer;
   std::unique_ptr<arrow::flight::FlightMetadataReader> reader;
-  auto t1 = std::chrono::high_resolution_clock::now();
   arrow::Status do_put_status = client->DoPut(arrow::flight::FlightDescriptor{},
                                               record_batch.schema(), &writer, &reader);
-  auto t2 = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-  std::cout << "Within SendToResponsibleNode: duration (microseconds) of client->DoPut: "
-            << duration << std::endl;
   if (!do_put_status.ok()) {
     return do_put_status;
   }
 
   arrow::Status writer_status;
-  t1 = std::chrono::high_resolution_clock::now();
   writer_status = writer->WriteRecordBatch(record_batch);
-  t2 = std::chrono::high_resolution_clock::now();
-  duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-  std::cout << "Within SendToResponsibleNode: duration (microseconds) of "
-               "writer->WriteRecordBatch(record_batch): "
-            << duration << std::endl;
   writer_status = writer->Close();
   if (!writer_status.ok()) {
     return writer_status;

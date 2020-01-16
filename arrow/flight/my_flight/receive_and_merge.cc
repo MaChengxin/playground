@@ -19,14 +19,11 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     auto host_name = boost::asio::ip::host_name();
     std::ofstream log_file;
     log_file.open(host_name + "_r.log", std::ios_base::app);
-
     do_put_counter_ += 1;
 
-    auto t1 = std::chrono::high_resolution_clock::now();
-    std::time_t log_time =
-        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    log_file << "Number of times DoPut has been called for: " << do_put_counter_
-             << ", at: " << std::ctime(&log_time);
+    log_file << PrettyPrintCurrentTime()
+             << "Number of times DoPut has been called for: " << do_put_counter_
+             << std::endl;
 
     arrow::flight::FlightStreamChunk chunk;
     // Put the received chunks together
@@ -40,26 +37,11 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
         RETURN_NOT_OK(writer->WriteMetadata(*chunk.app_metadata));
       }
     }
-    log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    log_file << "In DoPut: number of times data received from others: " << do_put_counter_
-             << ", at: " << std::ctime(&log_time);
 
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    std::cout << "Duration (microseconds) of receiveing the records: " << duration
-              << std::endl;
     if (do_put_counter_ == FLAGS_num_nodes) {
-      t1 = std::chrono::high_resolution_clock::now();
-      log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-      log_file << "ProcessReceivedData started at: " << std::ctime(&log_time);
+      log_file << PrettyPrintCurrentTime() << "ProcessReceivedData started" << std::endl;
       ProcessReceivedData();
-      log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-      log_file << "ProcessReceivedData finished at: " << std::ctime(&log_time);
-      t2 = std::chrono::high_resolution_clock::now();
-      duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-      std::cout << "Duration (microseconds) of ProcessReceivedData: " << duration
-                << std::endl;
+      log_file << PrettyPrintCurrentTime() << "ProcessReceivedData finished" << std::endl;
     }
 
     return arrow::Status::OK();
@@ -70,31 +52,30 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
   int do_put_counter_ = 0;
 
   void ProcessReceivedData() {
+    auto host_name = boost::asio::ip::host_name();
+    std::ofstream log_file;
+    log_file.open(host_name + "_r.log", std::ios_base::app);
     std::vector<plasma::ObjectID> object_ids;
     std::string object_id_strs;
-    auto t1 = std::chrono::high_resolution_clock::now();
+    log_file << PrettyPrintCurrentTime()
+             << "Within ProcessReceivedData: started PutRecordBatchToPlasma" << std::endl;
     for (auto record_batch : received_record_batches_) {
       auto object_id = PutRecordBatchToPlasma(record_batch);
-      std::cout << "Object ID: " << object_id.hex() << std::endl;
       object_ids.push_back(object_id);
       object_id_strs = object_id_strs + object_id.hex() + " ";
     }
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    std::cout << "Within ProcessReceivedData: duration (microseconds) of putting Records "
-                 "to Plasma: "
-              << duration << std::endl;
+    log_file << PrettyPrintCurrentTime()
+             << "Within ProcessReceivedData: finished PutRecordBatchToPlasma"
+             << std::endl;
 
+    log_file << PrettyPrintCurrentTime()
+             << "Within ProcessReceivedData: started python3 retrieve_and_sort.py"
+             << std::endl;
     std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
-    t1 = std::chrono::high_resolution_clock::now();
     std::system(python_cmd.c_str());
-    t2 = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    std::cout << "Within ProcessReceivedData: duration (microseconds) of using Python to "
-                 "retrieve data from Plasma "
-                 "and sort it: "
-              << duration << std::endl;
+    log_file << PrettyPrintCurrentTime()
+             << "Within ProcessReceivedData: finished python3 retrieve_and_sort.py"
+             << std::endl;
 
     if (FLAGS_debug_mode) {
       PrintRecordBatchesInPlasma(object_ids);
@@ -109,6 +90,7 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
 
     for (auto object_id : object_ids) {
+      std::cout << "Object ID: " << object_id.hex() << std::endl;
       std::shared_ptr<arrow::RecordBatch> record_batch;
       record_batch = GetRecordBatchFromPlasma(object_id, client);
       std::cout << "record_batch->column(2)->ToString()"
@@ -125,9 +107,8 @@ int main(int argc, char** argv) {
   auto host_name = boost::asio::ip::host_name();
   std::ofstream log_file;
   log_file.open(host_name + "_r.log", std::ios_base::app);
-  std::time_t log_time =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  log_file << "receive-and-merge started at: " << std::ctime(&log_time);
+
+  log_file << PrettyPrintCurrentTime() << "receive-and-merge started" << std::endl;
 
   std::unique_ptr<MyFlightServer> my_flight_server;
   my_flight_server.reset(new MyFlightServer);

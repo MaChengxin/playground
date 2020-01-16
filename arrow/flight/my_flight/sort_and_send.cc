@@ -1,6 +1,7 @@
 #include <gflags/gflags.h>
 #include <boost/asio/ip/host_name.hpp>
 
+#include "common.h"
 #include "sender.h"
 #include "sorter.h"
 
@@ -60,17 +61,10 @@ int main(int argc, char** argv) {
   auto host_name = boost::asio::ip::host_name();
   std::ofstream log_file;
   log_file.open(host_name + "_s.log", std::ios_base::app);
-  std::time_t log_time =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  log_file << "sort-and-send started at: " << std::ctime(&log_time);
-
-  auto t1 = std::chrono::high_resolution_clock::now();
-  auto t2 = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+  log_file << PrettyPrintCurrentTime() << "sort-and-send started" << std::endl;
 
   // Read the input file, construct the data to be sorted
-  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  log_file << "Reading from input file started at: " << std::ctime(&log_time);
+  log_file << PrettyPrintCurrentTime() << "Reading from input file started" << std::endl;
   std::vector<Record> records;
 
   std::ifstream in_file(FLAGS_input_file);
@@ -78,8 +72,7 @@ int main(int argc, char** argv) {
   while (in_file >> group >> seq >> data) {
     records.push_back({group, std::stoi(seq), data});
   }
-  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  log_file << "Reading from input file finished at: " << std::ctime(&log_time);
+  log_file << PrettyPrintCurrentTime() << "Reading from input file finished" << std::endl;
   if (FLAGS_debug_mode) {
     std::cout << "Before sorting" << std::endl;
     for (auto const& rec : records) {
@@ -88,11 +81,9 @@ int main(int argc, char** argv) {
   }
 
   // Sort the data
-  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  log_file << "Sorting started at: " << std::ctime(&log_time);
+  log_file << PrettyPrintCurrentTime() << "Sorting started" << std::endl;
   std::sort(records.begin(), records.end(), CompareRecords);
-  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  log_file << "Sorting finished at: " << std::ctime(&log_time);
+  log_file << PrettyPrintCurrentTime() << "Sorting finished" << std::endl;
   if (FLAGS_debug_mode) {
     std::cout << "After sorting" << std::endl;
     for (auto const& rec : records) {
@@ -101,7 +92,6 @@ int main(int argc, char** argv) {
   }
 
   // Partition the sorted records
-  t1 = std::chrono::high_resolution_clock::now();
   std::list<std::string> boundaries =
       SeparatePartitionBoundaries(FLAGS_partition_boundaries);
   auto first = records.begin();
@@ -126,10 +116,6 @@ int main(int argc, char** argv) {
   }
   temp_rec_vec = {first, records.end()};
   sub_records.push_back(temp_rec_vec);
-  t2 = std::chrono::high_resolution_clock::now();
-  duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-  std::cout << "Duration (microseconds) of partitioning the sorted records: " << duration
-            << std::endl;
 
   // Send away the sub records
   arrow::Status comm_status;
@@ -138,28 +124,21 @@ int main(int argc, char** argv) {
   // TODO: make this parallelized
   int i = 0;
   for (auto const& server_host : server_hosts) {
-    t1 = std::chrono::high_resolution_clock::now();
-    log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    log_file << "Started sending to " << server_host << " at: " << std::ctime(&log_time);
+    log_file << PrettyPrintCurrentTime() << "Started sending to " << server_host
+             << std::endl;
     comm_status =
         SendToResponsibleNode(server_host, FLAGS_server_port,
                               *ConvertStructVectorToRecordBatch(sub_records[i]));
     i = i + 1;
-    log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    log_file << "Finished sending to " << server_host << " at: " << std::ctime(&log_time);
-    t2 = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-
-    std::cout << "Duration (microseconds) of SendToResponsibleNode: " << duration
-              << " (Number of times this function be called: " << i << ")" << std::endl;
+    log_file << PrettyPrintCurrentTime() << "Finished sending to " << server_host
+             << std::endl;
     if (!comm_status.ok()) {
       std::cerr << "Sending to responsible node failed with error: "
                 << comm_status.ToString() << std::endl;
     }
   }
 
-  log_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  log_file << "sort-and-send finished at: " << std::ctime(&log_time);
+  log_file << PrettyPrintCurrentTime() << "sort-and-send finished" << std::endl;
 
   return 0;
 }
