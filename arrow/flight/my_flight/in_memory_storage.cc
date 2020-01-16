@@ -20,8 +20,6 @@ plasma::ObjectID PutRecordBatchToPlasma(
   }
   int64_t data_size = mock_output_stream.GetExtentBytesWritten();
 
-  std::cout << "Data size: " << data_size << std::endl;
-
   // Start up and connect a Plasma client
   plasma::PlasmaClient client;
   ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
