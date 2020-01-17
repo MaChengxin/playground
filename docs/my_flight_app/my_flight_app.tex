@@ -4,10 +4,8 @@
 \author{Chengxin Ma}
 \date{\today}
 
-% \usepackage{natbib}
-% \usepackage{graphicx}
-
 \usepackage{hyperref}
+\usepackage{todonotes}
 
 \begin{document}
 
@@ -64,7 +62,26 @@ Thus, the current implementation runs three processes on each node: \textit{plas
 \textit{receive-and-merge}, and \textit{sort-and-send}.
 \footnote{These processes have to be started in the order they were introduced above.}
 
+\subsection{Test run}
+To see how the application runs, a test run has been performed.
+4 nodes on Cartesius (\texttt{tcn337, tcn338, tcn339, tcn340}, we name them from Node 0 to 3 hereafter) were allocated for this test run.
+The data for the test run contains records of 40 groups (from \texttt{GROUP0} t0 \texttt{GROUP39}), each having 500,000 records (i.e. the total number of records is 20 million.)
+Each node has 5 million records in random order before the application runs, and we expected that after when the application finishes,
+Node 0 stores records from \texttt{GROUP0} to \texttt{GROUP9},
+Node 1 stores records from \texttt{GROUP10} to \texttt{GROUP19},
+Node 2 stores records from \texttt{GROUP20} to \texttt{GROUP29},
+Node 3 stores records from \texttt{GROUP30} to \texttt{GROUP39}, in the ascending order.
+
+The size of the input and output files on each node is around 130 MB.
+
+The test run was started one by one manually, in the order of from Node 0 to 3.
+(Interval: about 1 second.)
+
+
 \section{Experiments}
+
+\todo[inline]{Experiments should be conducted after the problems in the implementation part has been finished.}
+
 The goal of the experiments is to determine:
 \begin{itemize}
     \item Does the performance become better if more nodes are used?
@@ -74,7 +91,7 @@ The goal of the experiments is to determine:
 
 \subsection{Input size fixed, changing the number of nodes in use}
 
-\subsection{Number of nodes in use fixed, changing the input size}
+\subsection{Number of nodes fixed, changing the input size}
 
 \section{Next steps}
 
