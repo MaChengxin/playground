@@ -9,7 +9,6 @@ arrow::Status SendToResponsibleNode(std::string host, int port,
 
   std::unique_ptr<arrow::flight::FlightStreamWriter> writer;
   std::unique_ptr<arrow::flight::FlightMetadataReader> reader;
-
   arrow::Status do_put_status = client->DoPut(arrow::flight::FlightDescriptor{},
                                               record_batch.schema(), &writer, &reader);
   if (!do_put_status.ok()) {
@@ -42,4 +41,20 @@ std::vector<std::string> SeparateServerHosts(std::string server_hosts) {
   }
   server_hosts_vec.push_back(s);
   return server_hosts_vec;
+}
+
+std::list<std::string> SeparatePartitionBoundaries(std::string boundaries) {
+  std::string s = boundaries;
+  std::string delimiter = ",";
+  std::list<std::string> boundaries_lst;
+
+  size_t pos = 0;
+  std::string token;
+  while ((pos = s.find(delimiter)) != std::string::npos) {
+    token = s.substr(0, pos);
+    boundaries_lst.push_back(token);
+    s.erase(0, pos + delimiter.length());
+  }
+  boundaries_lst.push_back(s);
+  return boundaries_lst;
 }

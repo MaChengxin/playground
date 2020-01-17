@@ -1,11 +1,15 @@
 #include <gflags/gflags.h>
+#include <boost/asio/ip/host_name.hpp>
 
+#include "common.h"
 #include "sender.h"
 #include "sorter.h"
 
 DEFINE_string(input_file, "", "The input file containing data to be sorted.");
 DEFINE_string(server_hosts, "localhost", "Host(s) where the server(s) is/are running on");
 DEFINE_int32(server_port, 30103, "The port to connect to");
+DEFINE_string(partition_boundaries, "GROUP9,GROUP19",
+              "The boundaries of the partitioned records");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
 std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
@@ -54,8 +58,13 @@ std::shared_ptr<arrow::RecordBatch> ConvertStructVectorToRecordBatch(
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  auto host_name = boost::asio::ip::host_name();
+  std::ofstream log_file;
+  log_file.open(host_name + "_s.log", std::ios_base::app);
+  log_file << PrettyPrintCurrentTime() << "sort-and-send started" << std::endl;
 
   // Read the input file, construct the data to be sorted
+  log_file << PrettyPrintCurrentTime() << "Reading from input file started" << std::endl;
   std::vector<Record> records;
 
   std::ifstream in_file(FLAGS_input_file);
@@ -63,6 +72,7 @@ int main(int argc, char** argv) {
   while (in_file >> group >> seq >> data) {
     records.push_back({group, std::stoi(seq), data});
   }
+  log_file << PrettyPrintCurrentTime() << "Reading from input file finished" << std::endl;
   if (FLAGS_debug_mode) {
     std::cout << "Before sorting" << std::endl;
     for (auto const& rec : records) {
@@ -71,7 +81,9 @@ int main(int argc, char** argv) {
   }
 
   // Sort the data
+  log_file << PrettyPrintCurrentTime() << "Sorting started" << std::endl;
   std::sort(records.begin(), records.end(), CompareRecords);
+  log_file << PrettyPrintCurrentTime() << "Sorting finished" << std::endl;
   if (FLAGS_debug_mode) {
     std::cout << "After sorting" << std::endl;
     for (auto const& rec : records) {
@@ -79,25 +91,27 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Partition the records
+  // Partition the sorted records
+  std::list<std::string> boundaries =
+      SeparatePartitionBoundaries(FLAGS_partition_boundaries);
   auto first = records.begin();
   auto last = records.end();
   std::vector<Record> temp_rec_vec;
   std::vector<std::vector<Record>> sub_records;
+  std::string cur_bound = boundaries.front();
+  boundaries.pop_front();
   for (auto it = records.begin(); it != records.end(); ++it) {
-    if (it->group_name == "GROUP9" && (it + 1)->group_name == "GROUP10") {
+    if (it->group_name == cur_bound && (it + 1)->group_name != cur_bound) {
       last = it;
       temp_rec_vec = {first, last + 1};  // seems to be [,)
       sub_records.push_back(temp_rec_vec);
       first = last + 1;  // first of next, +1 of current last
-    }
-
-    if (it->group_name == "GROUP19" && (it + 1)->group_name == "GROUP20") {
-      last = it;
-      temp_rec_vec = {first, last + 1};
-      sub_records.push_back(temp_rec_vec);
-      first = last + 1;
-      break;
+      if (boundaries.size() != 0) {
+        cur_bound = boundaries.front();
+        boundaries.pop_front();
+      } else {
+        break;
+      }
     }
   }
   temp_rec_vec = {first, records.end()};
@@ -110,15 +124,21 @@ int main(int argc, char** argv) {
   // TODO: make this parallelized
   int i = 0;
   for (auto const& server_host : server_hosts) {
+    log_file << PrettyPrintCurrentTime() << "Started sending to " << server_host
+             << std::endl;
     comm_status =
         SendToResponsibleNode(server_host, FLAGS_server_port,
                               *ConvertStructVectorToRecordBatch(sub_records[i]));
     i = i + 1;
+    log_file << PrettyPrintCurrentTime() << "Finished sending to " << server_host
+             << std::endl;
     if (!comm_status.ok()) {
       std::cerr << "Sending to responsible node failed with error: "
                 << comm_status.ToString() << std::endl;
     }
   }
+
+  log_file << PrettyPrintCurrentTime() << "sort-and-send finished" << std::endl;
 
   return 0;
 }

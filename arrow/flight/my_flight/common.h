@@ -2,7 +2,9 @@
 #define COMMON_H
 
 #include <algorithm>
+#include <chrono>
 #include <csignal>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -26,4 +28,6 @@ struct Record {
   std::string data;
 };
 
-#endif // COMMON_H
+std::string PrettyPrintCurrentTime();
+
+#endif  // COMMON_H
