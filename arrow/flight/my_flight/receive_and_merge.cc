@@ -50,6 +50,8 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     log_file << PrettyPrintCurrentTime()
              << "Within DoPut: finished PutRecordBatchToPlasma" << std::endl;
 
+    // TODO: separate processing received data from DoPut
+    // (https://github.com/MaChengxin/playground/issues/2, not a blocking issue)
     if (do_put_counter_ == FLAGS_num_nodes) {
       log_file << PrettyPrintCurrentTime() << "ProcessReceivedData started" << std::endl;
       ProcessReceivedData();

@@ -44,6 +44,9 @@ arrow::Status SendToDest(int argc, char** argv) {
     object_ids.push_back(plasma::ObjectID::from_binary(object_id_str));
   }
 
+
+  // Reference code:
+  // https://github.com/apache/arrow/blob/master/cpp/src/arrow/flight/flight_benchmark.cc
   ARROW_ASSIGN_OR_RAISE(auto pool, arrow::internal::ThreadPool::Make(
                                        static_cast<int>(server_hosts.size())));
   std::vector<std::future<Status>> tasks;
@@ -53,7 +56,7 @@ arrow::Status SendToDest(int argc, char** argv) {
     log_file << PrettyPrintCurrentTime() << "Submitting a task to ThreadPool"
              << std::endl;
     ARROW_ASSIGN_OR_RAISE(auto task, pool->Submit(SendToDestinationNode, server_host,
-                                                  FLAGS_server_port, object_ids[i])); // use a map here instead of index
+                                                  FLAGS_server_port, object_ids[i]));
     tasks.push_back(std::move(task));
     log_file << PrettyPrintCurrentTime() << "Submitted a task to ThreadPool" << std::endl;
     i = i + 1;
