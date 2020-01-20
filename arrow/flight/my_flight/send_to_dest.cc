@@ -1,6 +1,8 @@
 #include <gflags/gflags.h>
 #include <boost/asio/ip/host_name.hpp>
 
+#include "arrow/util/thread_pool.h"
+
 #include "common.h"
 #include "sender.h"
 
@@ -20,7 +22,7 @@ std::string ConvertObjectIDString(std::string forty_chars) {
   return twenty_chars;
 }
 
-int main(int argc, char** argv) {
+arrow::Status SendToDest(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   auto host_name = boost::asio::ip::host_name();
   std::ofstream log_file;
@@ -42,25 +44,37 @@ int main(int argc, char** argv) {
     object_ids.push_back(plasma::ObjectID::from_binary(object_id_str));
   }
 
-  arrow::Status comm_status;
+  ARROW_ASSIGN_OR_RAISE(auto pool, arrow::internal::ThreadPool::Make(
+                                       static_cast<int>(server_hosts.size())));
+  std::vector<std::future<Status>> tasks;
 
-  // TODO: make this parallelized
   int i = 0;
   for (auto const& server_host : server_hosts) {
-    log_file << PrettyPrintCurrentTime() << "Started sending to " << server_host
+    log_file << PrettyPrintCurrentTime() << "Submitting a task to ThreadPool"
              << std::endl;
-    comm_status = SendToDestinationNode(server_host, FLAGS_server_port,
-                                        object_ids[i]);  // better to use a map here
+    ARROW_ASSIGN_OR_RAISE(auto task, pool->Submit(SendToDestinationNode, server_host,
+                                                  FLAGS_server_port, object_ids[i])); // use a map here instead of index
+    tasks.push_back(std::move(task));
+    log_file << PrettyPrintCurrentTime() << "Submitted a task to ThreadPool" << std::endl;
     i = i + 1;
-    log_file << PrettyPrintCurrentTime() << "Finished sending to " << server_host
-             << std::endl;
-    if (!comm_status.ok()) {
-      std::cerr << "Sending to responsible node failed with error: "
-                << comm_status.ToString() << std::endl;
-    }
+  }
+
+  // Wait for tasks to finish
+  for (auto&& task : tasks) {
+    log_file << PrettyPrintCurrentTime() << "Started task.get()" << std::endl;
+    RETURN_NOT_OK(task.get());
+    log_file << PrettyPrintCurrentTime() << "Finished task.get()" << std::endl;
   }
 
   log_file << PrettyPrintCurrentTime() << "send-to-dest finished" << std::endl;
 
+  return arrow::Status::OK();
+}
+
+int main(int argc, char** argv) {
+  arrow::Status status = SendToDest(argc, argv);
+  if (!status.ok()) {
+    std::cout << status.ToString() << std::endl;
+  }
   return 0;
 }
