@@ -39,23 +39,17 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       }
     }
 
-    log_file << PrettyPrintCurrentTime() << "Within DoPut: started PutRecordBatchToPlasma"
-             << std::endl;
-
     for (auto record_batch : received_record_batches) {
       auto object_id = PutRecordBatchToPlasma(record_batch);
       object_ids_.push_back(object_id);
     }
 
-    log_file << PrettyPrintCurrentTime()
-             << "Within DoPut: finished PutRecordBatchToPlasma" << std::endl;
-
     // TODO: separate processing received data from DoPut
     // (https://github.com/MaChengxin/playground/issues/2, not a blocking issue)
     if (do_put_counter_ == FLAGS_num_nodes) {
-      log_file << PrettyPrintCurrentTime() << "ProcessReceivedData started" << std::endl;
+      log_file << PrettyPrintCurrentTime() << "started processing received data" << std::endl;
       ProcessReceivedData();
-      log_file << PrettyPrintCurrentTime() << "ProcessReceivedData finished" << std::endl;
+      log_file << PrettyPrintCurrentTime() << "finished processing received data" << std::endl;
     }
 
     return arrow::Status::OK();
@@ -76,14 +70,8 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       object_id_strs = object_id_strs + object_id.hex() + " ";
     }
 
-    log_file << PrettyPrintCurrentTime()
-             << "Within ProcessReceivedData: started python3 retrieve_and_sort.py"
-             << std::endl;
     std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
     std::system(python_cmd.c_str());
-    log_file << PrettyPrintCurrentTime()
-             << "Within ProcessReceivedData: finished python3 retrieve_and_sort.py"
-             << std::endl;
 
     if (FLAGS_debug_mode) {
       PrintRecordBatchesInPlasma(object_ids_);

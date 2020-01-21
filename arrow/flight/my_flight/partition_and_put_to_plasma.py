@@ -1,6 +1,10 @@
+""" This file needs to be put with the send-to-dest executable in the same directory.
+"""
+
 import argparse
 from datetime import datetime
 import socket
+
 import pandas as pd
 import pyarrow as pa
 import pyarrow.plasma as plasma
@@ -59,17 +63,29 @@ if __name__ == "__main__":
     """
 
     # Read the input file, construct the data to be sorted: csv/txt -> DataFrame
+    with open(socket.gethostname()+'_s.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("started reading input file\n")
     records = pd.read_csv(args.input_file,
                           sep="\t",
                           names=["group_name", "seq", "data"])
+    with open(socket.gethostname()+'_s.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("finished reading input file\n")                      
 
-    # Partition the sorted records: DataFrame -> DataFrame
+    # Partition the records: DataFrame -> DataFrame
     # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
+    with open(socket.gethostname()+'_s.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("started partitioning the records\n")
     dfs = dict(tuple(records.groupby('group_name')))
     sub_records = []
     for i in range(len(partitioned_groups)):
         sub_records.append(pd.concat([dfs[group]
                                       for group in partitioned_groups[i]]))
+    with open(socket.gethostname()+'_s.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("finished partitioning the records\n")
 
     # Store the partitioned records to Plasma, to be retrived by C++: DataFrame -> RecordBatch -> Plasma Object
     client = plasma.connect('/tmp/plasma')

@@ -9,13 +9,14 @@
 DEFINE_string(server_hosts, "localhost", "Host(s) where the server(s) is/are running on");
 DEFINE_int32(server_port, 30103, "The port to connect to");
 
-std::string ConvertObjectIDString(std::string forty_chars) {
+// Similar to binascii.unhexlify in Python, but dedicated to string of 40 characters
+std::string ConvertObjectIDString(std::string fourty_chars) {
   std::string twenty_chars;
   int first;
   int second;
   for (int i = 0; i < 39; i = i + 2) {
-    first = std::stoi(forty_chars.substr(i, 1), nullptr, 16);
-    second = std::stoi(forty_chars.substr(i + 1, 1), nullptr, 16);
+    first = std::stoi(fourty_chars.substr(i, 1), nullptr, 16);
+    second = std::stoi(fourty_chars.substr(i + 1, 1), nullptr, 16);
     char new_char = (first << 4) + second;
     twenty_chars += new_char;
   }
@@ -53,20 +54,19 @@ arrow::Status SendToDest(int argc, char** argv) {
 
   int i = 0;
   for (auto const& server_host : server_hosts) {
-    log_file << PrettyPrintCurrentTime() << "Submitting a task to ThreadPool"
+    log_file << PrettyPrintCurrentTime() << "submitting a task to ThreadPool"
              << std::endl;
     ARROW_ASSIGN_OR_RAISE(auto task, pool->Submit(SendToDestinationNode, server_host,
                                                   FLAGS_server_port, object_ids[i]));
     tasks.push_back(std::move(task));
-    log_file << PrettyPrintCurrentTime() << "Submitted a task to ThreadPool" << std::endl;
+    log_file << PrettyPrintCurrentTime() << "submitted a task to ThreadPool" << std::endl;
     i = i + 1;
   }
 
   // Wait for tasks to finish
   for (auto&& task : tasks) {
-    log_file << PrettyPrintCurrentTime() << "Started task.get()" << std::endl;
     RETURN_NOT_OK(task.get());
-    log_file << PrettyPrintCurrentTime() << "Finished task.get()" << std::endl;
+    log_file << PrettyPrintCurrentTime() << "finished a task" << std::endl;
   }
 
   log_file << PrettyPrintCurrentTime() << "send-to-dest finished" << std::endl;

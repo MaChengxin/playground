@@ -1,5 +1,5 @@
 diff --git a/cpp/src/arrow/flight/CMakeLists.txt b/cpp/src/arrow/flight/CMakeLists.txt
-index d0f4f3cf6..e277e57e2 100644
+index d0f4f3cf6..446437581 100644
 --- a/cpp/src/arrow/flight/CMakeLists.txt
 +++ b/cpp/src/arrow/flight/CMakeLists.txt
 @@ -195,3 +195,11 @@ if(ARROW_BUILD_BENCHMARKS)
@@ -11,6 +11,6 @@ index d0f4f3cf6..e277e57e2 100644
 +target_link_libraries(send-to-dest ${ARROW_FLIGHT_TEST_LINK_LIBS}
 +                      ${GFLAGS_LIBRARIES} GTest::GTest plasma_shared)
 +
-+add_executable(receive-and-merge receive_and_merge.cc common.cc in_memory_storage.cc)
-+target_link_libraries(receive-and-merge ${ARROW_FLIGHT_TEST_LINK_LIBS}
++add_executable(receive-and-store receive_and_store.cc common.cc in_memory_storage.cc)
++target_link_libraries(receive-and-store ${ARROW_FLIGHT_TEST_LINK_LIBS}
 +                      ${GFLAGS_LIBRARIES} GTest::GTest plasma_shared)
