@@ -19,11 +19,7 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     auto host_name = boost::asio::ip::host_name();
     std::ofstream log_file;
     log_file.open(host_name + "_r.log", std::ios_base::app);
-    do_put_counter_ += 1;
 
-    log_file << PrettyPrintCurrentTime()
-             << "Number of times DoPut has been called for: " << do_put_counter_
-             << std::endl;
     std::vector<std::shared_ptr<arrow::RecordBatch>> received_record_batches;
 
     arrow::flight::FlightStreamChunk chunk;
@@ -46,11 +42,19 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
 
     // TODO: separate processing received data from DoPut
     // (https://github.com/MaChengxin/playground/issues/2, not a blocking issue)
+    do_put_counter_ += 1;
+
     if (do_put_counter_ == FLAGS_num_nodes) {
-      log_file << PrettyPrintCurrentTime() << "started processing received data" << std::endl;
+      log_file << PrettyPrintCurrentTime() << "started processing received data"
+               << std::endl;
       ProcessReceivedData();
-      log_file << PrettyPrintCurrentTime() << "finished processing received data" << std::endl;
+      log_file << PrettyPrintCurrentTime() << "finished processing received data"
+               << std::endl;
     }
+
+    log_file << PrettyPrintCurrentTime()
+             << "Number of times DoPut has been called for: " << do_put_counter_
+             << std::endl;
 
     return arrow::Status::OK();
   }
