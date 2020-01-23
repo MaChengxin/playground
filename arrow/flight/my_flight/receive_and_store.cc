@@ -6,7 +6,7 @@
 #include "common.h"
 #include "in_memory_storage.h"
 
-DEFINE_int32(num_nodes, 3, "Number of nodes used for the distributed sorting task");
+DEFINE_int32(num_nodes, 4, "Number of nodes used for the distributed sorting task");
 DEFINE_string(server_host, "localhost", "Host where the server is running on");
 DEFINE_int32(server_port, 30103, "Server port to listen on");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
@@ -35,26 +35,23 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       }
     }
 
+    log_file << PrettyPrintCurrentTime() << "received data, started putting to Plasma"
+             << std::endl;
+
     for (auto record_batch : received_record_batches) {
       auto object_id = PutRecordBatchToPlasma(record_batch);
       object_ids_.push_back(object_id);
     }
+    log_file << PrettyPrintCurrentTime() << "putting received data to Plasma finished"
+             << std::endl;
 
     // TODO: separate processing received data from DoPut
     // (https://github.com/MaChengxin/playground/issues/2, not a blocking issue)
     do_put_counter_ += 1;
 
     if (do_put_counter_ == FLAGS_num_nodes) {
-      log_file << PrettyPrintCurrentTime() << "started processing received data"
-               << std::endl;
       ProcessReceivedData();
-      log_file << PrettyPrintCurrentTime() << "finished processing received data"
-               << std::endl;
     }
-
-    log_file << PrettyPrintCurrentTime()
-             << "Number of times DoPut has been called for: " << do_put_counter_
-             << std::endl;
 
     return arrow::Status::OK();
   }
@@ -64,10 +61,6 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
   std::vector<plasma::ObjectID> object_ids_;
 
   void ProcessReceivedData() {
-    auto host_name = boost::asio::ip::host_name();
-    std::ofstream log_file;
-    log_file.open(host_name + "_r.log", std::ios_base::app);
-
     std::string object_id_strs;
 
     for (auto object_id : object_ids_) {
@@ -104,11 +97,6 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-  auto host_name = boost::asio::ip::host_name();
-  std::ofstream log_file;
-  log_file.open(host_name + "_r.log", std::ios_base::app);
-
-  log_file << PrettyPrintCurrentTime() << "receive-and-merge started" << std::endl;
 
   std::unique_ptr<MyFlightServer> my_flight_server;
   my_flight_server.reset(new MyFlightServer);

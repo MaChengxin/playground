@@ -43,10 +43,6 @@ def put_df_to_plasma(df, client):
 
 
 if __name__ == "__main__":
-    with open(socket.gethostname()+'_s.log', 'a') as f:
-        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("partition_and_put_to_plasma.py started\n")
-
     # Parse the arguments
     args = parser.parse_args()
     pb = args.partition_boundaries.split(',')
@@ -62,7 +58,7 @@ if __name__ == "__main__":
     [['GROUP0', 'GROUP1', 'GROUP2'], ['GROUP3', 'GROUP4', 'GROUP5'], ['GROUP6', 'GROUP7', 'GROUP8', 'GROUP9']]
     """
 
-    # Read the input file, construct the data to be sorted: csv/txt -> DataFrame
+    # Read the input file, construct the data to be partitioned: csv/txt -> DataFrame
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write("started reading input file\n")
@@ -71,31 +67,34 @@ if __name__ == "__main__":
                           names=["group_name", "seq", "data"])
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("finished reading input file\n")                      
+        f.write(
+            "finished reading input file, started partitioning the records, started groupby()\n")
 
     # Partition the records: DataFrame -> DataFrame
     # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
+    dfs = dict(tuple(records.groupby('group_name')))
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("started partitioning the records\n")
-    dfs = dict(tuple(records.groupby('group_name')))
+        f.write(
+            ">> partitioning the records, groupby() finished, pd.concat() started \n")
     sub_records = []
     for i in range(len(partitioned_groups)):
         sub_records.append(pd.concat([dfs[group]
                                       for group in partitioned_groups[i]]))
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("finished partitioning the records\n")
+        f.write(
+            "pd.concat() finished, finished partitioning the records, started putting them to Plasma\n")
 
     # Store the partitioned records to Plasma, to be retrived by C++: DataFrame -> RecordBatch -> Plasma Object
     client = plasma.connect('/tmp/plasma')
     object_ids = [put_df_to_plasma(records, client) for records in sub_records]
 
+    with open(socket.gethostname()+'_s.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("finished putting partitioned records to Plasma\n")
+
     with open(socket.gethostname()+'_object_ids.txt', 'w') as f:
         for object_id in object_ids:
             # [9,-1) is to remove prefix and suffix "ObjectID(" and ")"
             f.write(str(object_id)[9:-1]+"\n")
-
-    with open(socket.gethostname()+'_s.log', 'a') as f:
-        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("partition_and_put_to_plasma.py finished\n")

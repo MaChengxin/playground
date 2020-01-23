@@ -45,7 +45,6 @@ arrow::Status SendToDest(int argc, char** argv) {
     object_ids.push_back(plasma::ObjectID::from_binary(object_id_str));
   }
 
-
   // Reference code:
   // https://github.com/apache/arrow/blob/master/cpp/src/arrow/flight/flight_benchmark.cc
   ARROW_ASSIGN_OR_RAISE(auto pool, arrow::internal::ThreadPool::Make(
@@ -54,22 +53,16 @@ arrow::Status SendToDest(int argc, char** argv) {
 
   int i = 0;
   for (auto const& server_host : server_hosts) {
-    log_file << PrettyPrintCurrentTime() << "submitting a task to ThreadPool"
-             << std::endl;
     ARROW_ASSIGN_OR_RAISE(auto task, pool->Submit(SendToDestinationNode, server_host,
                                                   FLAGS_server_port, object_ids[i]));
     tasks.push_back(std::move(task));
-    log_file << PrettyPrintCurrentTime() << "submitted a task to ThreadPool" << std::endl;
     i = i + 1;
   }
 
   // Wait for tasks to finish
   for (auto&& task : tasks) {
     RETURN_NOT_OK(task.get());
-    log_file << PrettyPrintCurrentTime() << "finished a task" << std::endl;
   }
-
-  log_file << PrettyPrintCurrentTime() << "send-to-dest finished" << std::endl;
 
   return arrow::Status::OK();
 }
