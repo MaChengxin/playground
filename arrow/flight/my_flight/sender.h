@@ -5,9 +5,8 @@
 
 #include "common.h"
 
-arrow::Status SendToResponsibleNode(std::string host, int port,
-                                    const arrow::RecordBatch& record_batch);
+arrow::Status SendToDestinationNode(std::string host, int port,
+                                    plasma::ObjectID object_id);
 std::vector<std::string> SeparateServerHosts(std::string server_hosts);
-std::list<std::string> SeparatePartitionBoundaries(std::string boundaries);
 
 #endif  // SENDER_H

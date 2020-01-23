@@ -19,11 +19,8 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
     auto host_name = boost::asio::ip::host_name();
     std::ofstream log_file;
     log_file.open(host_name + "_r.log", std::ios_base::app);
-    do_put_counter_ += 1;
 
-    log_file << PrettyPrintCurrentTime()
-             << "Number of times DoPut has been called for: " << do_put_counter_
-             << std::endl;
+    std::vector<std::shared_ptr<arrow::RecordBatch>> received_record_batches;
 
     arrow::flight::FlightStreamChunk chunk;
     // Put the received chunks together
@@ -31,54 +28,57 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       // Question: what is the capacity of a chunk?
       RETURN_NOT_OK(reader->Next(&chunk));
       if (!chunk.data) break;
-      received_record_batches_.push_back(chunk.data);
+      received_record_batches.push_back(chunk.data);
       if (chunk.app_metadata) {
         std::cout << "chunk.app_metadata" << chunk.app_metadata->ToString() << std::endl;
         RETURN_NOT_OK(writer->WriteMetadata(*chunk.app_metadata));
       }
     }
 
-    if (do_put_counter_ == FLAGS_num_nodes) {
-      log_file << PrettyPrintCurrentTime() << "ProcessReceivedData started" << std::endl;
-      ProcessReceivedData();
-      log_file << PrettyPrintCurrentTime() << "ProcessReceivedData finished" << std::endl;
+    for (auto record_batch : received_record_batches) {
+      auto object_id = PutRecordBatchToPlasma(record_batch);
+      object_ids_.push_back(object_id);
     }
+
+    // TODO: separate processing received data from DoPut
+    // (https://github.com/MaChengxin/playground/issues/2, not a blocking issue)
+    do_put_counter_ += 1;
+
+    if (do_put_counter_ == FLAGS_num_nodes) {
+      log_file << PrettyPrintCurrentTime() << "started processing received data"
+               << std::endl;
+      ProcessReceivedData();
+      log_file << PrettyPrintCurrentTime() << "finished processing received data"
+               << std::endl;
+    }
+
+    log_file << PrettyPrintCurrentTime()
+             << "Number of times DoPut has been called for: " << do_put_counter_
+             << std::endl;
 
     return arrow::Status::OK();
   }
 
  private:
-  std::vector<std::shared_ptr<arrow::RecordBatch>> received_record_batches_;
   int do_put_counter_ = 0;
+  std::vector<plasma::ObjectID> object_ids_;
 
   void ProcessReceivedData() {
     auto host_name = boost::asio::ip::host_name();
     std::ofstream log_file;
     log_file.open(host_name + "_r.log", std::ios_base::app);
-    std::vector<plasma::ObjectID> object_ids;
+
     std::string object_id_strs;
-    log_file << PrettyPrintCurrentTime()
-             << "Within ProcessReceivedData: started PutRecordBatchToPlasma" << std::endl;
-    for (auto record_batch : received_record_batches_) {
-      auto object_id = PutRecordBatchToPlasma(record_batch);
-      object_ids.push_back(object_id);
+
+    for (auto object_id : object_ids_) {
       object_id_strs = object_id_strs + object_id.hex() + " ";
     }
-    log_file << PrettyPrintCurrentTime()
-             << "Within ProcessReceivedData: finished PutRecordBatchToPlasma"
-             << std::endl;
 
-    log_file << PrettyPrintCurrentTime()
-             << "Within ProcessReceivedData: started python3 retrieve_and_sort.py"
-             << std::endl;
     std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
     std::system(python_cmd.c_str());
-    log_file << PrettyPrintCurrentTime()
-             << "Within ProcessReceivedData: finished python3 retrieve_and_sort.py"
-             << std::endl;
 
     if (FLAGS_debug_mode) {
-      PrintRecordBatchesInPlasma(object_ids);
+      PrintRecordBatchesInPlasma(object_ids_);
     }
   }
 
