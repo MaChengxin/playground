@@ -1,45 +1,18 @@
-""" This file needs to be put with the send-to-dest executable in the same directory.
-"""
-
 import argparse
 from datetime import datetime
-import socket
-
+from multiprocessing import Process
+import os
 import pandas as pd
-import pyarrow as pa
-import pyarrow.plasma as plasma
+from sender import send_file
+import socket
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input_file",
                     help="The input file containing data to be sorted.")
 parser.add_argument("-p", "--partition_boundaries",
                     help="The boundaries to partition the records.")
-
-
-def put_df_to_plasma(df, client):
-    """ Precondition: the Plasma Object Store has been opened.
-        Returns the object ID.
-    """
-    record_batch = pa.RecordBatch.from_pandas(df)
-
-    # Get size of record batch and schema
-    mock_output_stream = pa.MockOutputStream()
-    stream_writer = pa.RecordBatchStreamWriter(mock_output_stream,
-                                               record_batch.schema)
-    stream_writer.write_batch(record_batch)
-    data_size = mock_output_stream.size()
-
-    object_id = plasma.ObjectID.from_random()
-
-    buf = client.create(object_id, data_size)
-    stream = pa.FixedSizeBufferWriter(buf)
-    stream_writer = pa.RecordBatchStreamWriter(stream, record_batch.schema)
-    stream_writer.write_batch(record_batch)
-
-    # Seal the object
-    client.seal(object_id)
-
-    return object_id
+parser.add_argument("hosts", help="The receivers")
+parser.add_argument("port", help="Port to use, default is 5001", default=5001)
 
 
 if __name__ == "__main__":
@@ -57,6 +30,9 @@ if __name__ == "__main__":
     """ partitioned_groups will look something like this given -p 0,3,6,10:
     [['GROUP0', 'GROUP1', 'GROUP2'], ['GROUP3', 'GROUP4', 'GROUP5'], ['GROUP6', 'GROUP7', 'GROUP8', 'GROUP9']]
     """
+
+    hosts = args.hosts.split(',')
+    port = int(args.port)
 
     # Read the input file, construct the data to be partitioned: csv/txt -> DataFrame
     with open(socket.gethostname()+'_s.log', 'a') as f:
@@ -83,18 +59,34 @@ if __name__ == "__main__":
                                       for group in partitioned_groups[i]]))
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write(
-            "pd.concat() finished, finished partitioning the records, started putting them to Plasma\n")
+        f.write("pd.concat() finished, finished partitioning the records, started serializing the data to pkl files\n")
 
-    # Store the partitioned records to Plasma, to be retrived by C++: DataFrame -> RecordBatch -> Plasma Object
-    client = plasma.connect('/tmp/plasma')
-    object_ids = [put_df_to_plasma(records, client) for records in sub_records]
+    # Serialize the data to pkl files: DataFrame -> pkl
+    if not os.path.exists(socket.gethostname()+"/to_be_sent"):
+        os.makedirs(socket.gethostname()+"/to_be_sent")
+    pkl_files = []
+    for index, records in enumerate(sub_records):
+        pkl_file = socket.gethostname()+"/to_be_sent/" + \
+            socket.gethostname()+"_"+str(index)+".pkl"
+        pkl_files.append(pkl_file)
+        records.to_pickle(pkl_file)
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("finished putting partitioned records to Plasma\n")
+        f.write(
+            "finished serializing the data to pkl files, started sending to destination nodes\n")
 
-    with open(socket.gethostname()+'_object_ids.txt', 'w') as f:
-        for object_id in object_ids:
-            # [9,-1) is to remove prefix and suffix "ObjectID(" and ")"
-            f.write(str(object_id)[9:-1]+"\n")
+    # Send the files to receivers in parallel
+    procs = []
+    for pkl_file, host in zip(pkl_files, hosts):
+        proc = Process(target=send_file, args=(pkl_file, host, port))
+        procs.append(proc)
+        proc.daemon = True
+        proc.start()
+
+    for proc in procs:
+        proc.join()
+
+    with open(socket.gethostname()+'_s.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("finished sending to destination nodes\n")

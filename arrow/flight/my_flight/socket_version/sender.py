@@ -2,13 +2,13 @@
 Client that sends the file (uploads)
 Reference: https://www.thepythoncode.com/article/send-receive-files-using-sockets-python
 """
+
+import argparse
+import os
 import socket
 import tqdm
-import os
-import argparse
 
 SEPARATOR = "<SEPARATOR>"
-
 BUFFER_SIZE = 1024 * 4
 
 
@@ -23,6 +23,11 @@ def send_file(filename, host, port):
 
     # send the filename and filesize
     s.send(f"{filename}{SEPARATOR}{filesize}".encode())
+
+    while True:
+        ack = s.recv(BUFFER_SIZE)
+        if ack == b'File info received, ready for file content.':
+            break
 
     # start sending the file
     progress = tqdm.tqdm(range(

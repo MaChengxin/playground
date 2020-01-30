@@ -5,11 +5,19 @@ References:
     https://stackoverflow.com/questions/1233222/python-multiprocessing-easy-way-to-implement-a-simple-counter
 """
 
+import argparse
 from ctypes import c_int
+from datetime import datetime
 from multiprocessing import Lock, Process, Value
 import os
 import socket
 import tqdm
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-n",
+                    "--number_of_nodes",
+                    help="The number of nodes used for distributed sorting.",
+                    default=4)
 
 
 SERVER_HOST = "0.0.0.0"
@@ -35,10 +43,15 @@ def receive_file(conn, address):
     # convert to integer
     filesize = int(filesize)
 
+    conn.send(b'File info received, ready for file content.')
+
     # start receiving the file from the socket and writing to the file stream
     progress = tqdm.tqdm(range(
         filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
-    with open(filename, "wb") as f:
+
+    if not os.path.exists(socket.gethostname()+"/recved"):
+        os.makedirs(socket.gethostname()+"/recved")
+    with open(socket.gethostname()+"/recved/"+filename, "wb") as f:
         for _ in progress:
             # read 1024 bytes from the socket (receive)
             bytes_read = conn.recv(BUFFER_SIZE)
@@ -54,10 +67,15 @@ def receive_file(conn, address):
     conn.close()
     print(f"[-] {address} is disconnected.")
     increment_num_recved_files()
-    print(f"Number of received files: {num_recved_files.value}")
+    with open(socket.gethostname()+'_r.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("finished receiving a file, ")
+        f.write(f"number of received files: {num_recved_files.value}\n")
 
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+    num_of_nodes = int(args.number_of_nodes)
     # create the listening socket
     s = socket.socket()
 
@@ -70,13 +88,13 @@ if __name__ == "__main__":
 
     procs = []
     to_be_recved_file_counter = 0
-    while to_be_recved_file_counter < 4:  # TODO: change this hard-coded number
+    while to_be_recved_file_counter < num_of_nodes:
         # accept connection if there is any
         conn, address = s.accept()
         print(f"[+] {address} is connected.")
 
         to_be_recved_file_counter += 1
-        print(f"Counter of file to be received: {to_be_recved_file_counter}")
+        # print(f"Counter of file to be received: {to_be_recved_file_counter}")
 
         proc = Process(target=receive_file, args=(conn, address))
         procs.append(proc)
