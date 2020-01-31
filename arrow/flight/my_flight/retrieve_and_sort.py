@@ -39,15 +39,19 @@ if __name__ == "__main__":
     with open(socket.gethostname()+'_r.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write(
-            "finished retrieving the records from Plasma, started converting and assembling to DataFrame\n")
+            "finished retrieving the records from Plasma, started converting to DataFrame\n")
 
     dfs = [rb.to_pandas() for rb in record_batches]
+
+    with open(socket.gethostname()+'_r.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("finished converting to DataFrame, started concatenating\n")
+
     all_records = pd.concat(dfs)
 
     with open(socket.gethostname()+'_r.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write(
-            "finished converting and assembling the records, started sorting the records\n")
+        f.write("finished concatenating, started sorting the records\n")
 
     all_records.sort_values(by=['group_name', 'seq'], inplace=True)
 
