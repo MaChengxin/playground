@@ -1,6 +1,6 @@
 \documentclass{article}
 
-\title{Distributed sorting using Apache Arrow Flight for communication}
+\title{Design notes for a distributed sorting application}
 \author{Chengxin Ma}
 \date{\today}
 
@@ -13,7 +13,7 @@
 \maketitle
 
 \section{Introduction}
-This report includes the design and implementation of a distributed sorting application which utilizes Apache Arrow Flight for communication.
+\todo[inline]{TODO}
 
 \section{Design}
 \subsection{Test data}
@@ -33,7 +33,7 @@ Note that we do not necessarily need to write the output into files.
 It is only for experimenting purpose.
 After integration we could use in-memory storage instead.
 
-\subsection{Functional decomposition}
+\subsection{Functional decomposition and phases}
 
 The following functional components must be implemented to complete the application.
 \begin{itemize}
@@ -53,47 +53,51 @@ while the \textit{merger} is to merge the partitioned data to a complete set.
 
 \textit{Storage} is needed when we want to temporarily store the data before further processing.
 
+Based on if data is shuffled or not during execution, we can divide the overall execution time into three phases.
+
+The first phase is the \textit{partitioning} phase.
+In this phase, data is partitioned to subsets according to the final destination where it is going to be sent to.
+Beginning of this phase is marked by the earliest start time on all the nodes,
+while the end of this phase is marked by the time when all nodes have finished partitioning the input data.
+
+We denote the start time of partitioning on each node as $part\_s_i$ and the finish time as $part\_f_i$.
+Thus, the overall time of the partitioning phase is $max(part\_f_i) - min(part\_s_i)$.
+
+The second phase is the \textit{communication} phase.
+In this phase, data is shuffled to destination nodes in parallel.
+As soon as one node has started sending data out, it is the time that marks the beginning of the communication phase.
+End of this phase is marked by the time when all nodes have received all data belonging to them.
+We denote the time when node $i$ starts to send data to node $j$ as $comm\_send_{ij}$,
+and the time when node $j$ receives all the data from node $i$ as as $comm\_recv_{ij}$ .
+Assume that sending and receiving take a constant time (i.e. $comm\_recv_{ij} - comm\_send_{ij} = T$ for a given pair of $(i, j)$), 
+then time of the communication phase $max(comm\_recv_{ij}) - min(comm\_send_{ij})$ would become $T + max(comm\_send_{ij}) - min(comm\_send_{ij})$.
+
+The third phase is the \textit{sorting} phase.
+In this phase, data from all other nodes and on the local node is merged and sorted.
+Beginning and end of this phase is marked by the earliest start time of merging on all nodes and the latest finish time of sorting on all nodes respectively.
+We denote the start time of the sorting phase on each node as $sort\_s_i$ and finish time as $sort\_f_i$.
+Thus, the overall time of the sorting phase is $max(sort\_f_i) - min(sort\_s_i)$.
+
 \section{Implementation}
-There are some dependencies among the functional components.
-The \textit{sender} must wait until \textit{partitioner} has partitioned the inputs to groups with known destination.
-The \textit{merger} must wait until the \textit{receiver} has got all the data, and then the \textit{sorter} can perform its task.
 
-Thus, the current implementation runs three processes on each node:
-\textit{partition-and-send},
-\textit{receive-and-sort}, and
-\textit{plasma-store-server}.
+\subsection{Implementation choices}
+We choose \texttt{pandas}, a Python library for data manipulation and analysis, 
+for the partitioning and sorting phase of the application.
+For the communication phase, we have two alternatives: \texttt{socket} (Python version) and \texttt{Apache Arrow Flight}.
+The interface to the partitioning phase and sorting phase is also different.
+We use \texttt{pickle} to serialize/deserialize the data before/after the communication phase in the \texttt{socket} version,
+while \texttt{Plasma} and \texttt{Arrow RecordBatch} are used when \texttt{Apache Arrow Flight} is used for communication.
 
-The following tables show the steps in \textit{partition-and-send} and \textit{receive-and-sort}.
-For \textit{plasma-store-server}, the only step is to start it.
+\subsection{Flowchart}
 
-\begin{table}[h!]
+\begin{figure}[h!]
+    \caption{Flowchart of the application, with two alternatives for the communication phase}
     \centering
-    \begin{tabular}{|l|l|}
-    \hline
-           & \multicolumn{1}{c|}{\textbf{Partition and Send}} \\ \hline
-    Step 1 & Read data from input file into memory.           \\ \hline
-    Step 2 & Partition the in-memory data.                    \\ \hline
-    Step 3 & Put partitioned data to Plasma.                  \\ \hline
-    Step 4 & Retrieve from Plasma and send to other nodes.    \\ \hline
-    \end{tabular}
-    \caption{Steps in the partition-and-send processes}
-\end{table}
+      \includegraphics[width=1.0\textwidth]{flowchart}
+    \label{fig:flowchart}
+\end{figure}
 
-\begin{table}[h!]
-    \centering
-    \begin{tabular}{|l|l|}
-    \hline
-           & \multicolumn{1}{c|}{\textbf{Receive and Sort}}                     \\ \hline
-    Step 1 & Start the Flight server, waiting for data from other nodes.        \\ \hline
-    Step 2 & Receive data from other nodes, put into Plasma, increment counter. \\ \hline
-    Step 3 & When all data received, retrieve data from Plasma.                 \\ \hline
-    Step 4 & Sort the retrieved data.                                           \\ \hline
-    Step 5 & Write sorted data to output file for verification.                 \\ \hline
-    \end{tabular}
-    \caption{Steps in the receive-and-sort processes}
-\end{table}
-
-\subsection{Test run}
+\section{Test run}
 To see the performance of the application, a test run has been performed.
 4 nodes on Cartesius (\texttt{tcn348, tcn918, tcn1354, tcn1540}, we name them from Node 0 to 3 hereafter) were allocated for this test run.
 The data for the test run contains records of 40 groups (from \texttt{GROUP0} to \texttt{GROUP39}), each having 1 million records (i.e. the total number of records is 40 million).
@@ -174,19 +178,7 @@ the time of partitioning, accessing Plasma, and communication will be all gone,
  but the sorting time will be a bit more than 4 times than the current sorting time (assuming $O(n\log{}n)$ complexity).
 So the overall time might be a bit more than distributed sorting.}
 
-\section{Experiments}
-\todo[]{TODO}
-
-The goal of the experiments is to determine:
-\begin{itemize}
-    \item Does the performance become better if more nodes are used?
-    \item How does the application behave when the volume of data increase?
-    \item Where is the bottleneck of performance?
-\end{itemize}
-
-\subsection{Input size fixed, changing the number of nodes in use}
-
-\subsection{Number of nodes fixed, changing the input size}
+\section{Running in a larger scale}
 
 \newpage
 \appendix
