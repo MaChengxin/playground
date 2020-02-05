@@ -11,8 +11,8 @@ parser.add_argument("-i", "--input_file",
                     help="The input file containing data to be sorted.")
 parser.add_argument("-p", "--partition_boundaries",
                     help="The boundaries to partition the records.")
-parser.add_argument("hosts", help="The receivers")
-parser.add_argument("port", help="Port to use, default is 5001", default=5001)
+parser.add_argument("--hosts", help="The receivers")
+parser.add_argument("--port", help="Port to use, default is 5001", default=5001)
 
 
 if __name__ == "__main__":
