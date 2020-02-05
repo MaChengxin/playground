@@ -4,6 +4,7 @@
 import argparse
 from datetime import datetime
 import socket
+import subprocess
 
 import pandas as pd
 import pyarrow as pa
@@ -12,6 +13,7 @@ import pyarrow.plasma as plasma
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input_file",
                     help="The input file containing data to be sorted.")
+parser.add_argument("--hosts", help="The receivers")
 parser.add_argument("-p", "--partition_boundaries",
                     help="The boundaries to partition the records.")
 
@@ -98,3 +100,7 @@ if __name__ == "__main__":
         for object_id in object_ids:
             # [9,-1) is to remove prefix and suffix "ObjectID(" and ")"
             f.write(str(object_id)[9:-1]+"\n")
+    
+    cpp_proc = ["./send-to-dest", "-server_hosts"]
+    cpp_proc.append(args.hosts)
+    subprocess.call(cpp_proc)
