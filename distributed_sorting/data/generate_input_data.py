@@ -6,7 +6,7 @@ RECORDS_PER_GROUP = 2 * 10**6
 
 records_per_node = int(NUM_OF_GROUPS*RECORDS_PER_GROUP/NUM_OF_NODES)
 
-records = [('GROUP'+str(g), str(i), 'DATA'+str(g)+str(i))
+records = [('GROUP'+str(g).zfill(2), str(i).zfill(7), 'DATA'+str(g).zfill(2)+str(i).zfill(7))
            for g in range(NUM_OF_GROUPS) for i in range(RECORDS_PER_GROUP)]
 
 random.shuffle(records)
