@@ -60,7 +60,8 @@ if __name__ == "__main__":
         f.write("finished sorting the records, started writing to csv\n")
 
     all_records.reset_index(drop=True, inplace=True)
-    all_records.to_csv(socket.gethostname()+'.csv', sep='\t', index=False)
+    all_records.to_csv(socket.gethostname()+'.csv',
+                       sep='\t', header=False, index=False)
 
     with open(socket.gethostname()+'_r.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')

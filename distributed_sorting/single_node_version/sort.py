@@ -17,7 +17,8 @@ if __name__ == "__main__":
 
     all_records = pd.read_csv(args.input_file,
                               sep="\t",
-                              names=["group_name", "seq", "data"])
+                              names=["group_name", "seq", "data"],
+                              dtype=str)
 
     with open(socket.gethostname()+'.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
@@ -30,7 +31,8 @@ if __name__ == "__main__":
         f.write("finished sorting the records, started writing to csv\n")
 
     all_records.reset_index(drop=True, inplace=True)
-    all_records.to_csv(socket.gethostname()+'.csv', sep='\t', index=False)
+    all_records.to_csv(socket.gethostname()+'.csv',
+                       sep='\t', header=False, index=False)
 
     with open(socket.gethostname()+'.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')

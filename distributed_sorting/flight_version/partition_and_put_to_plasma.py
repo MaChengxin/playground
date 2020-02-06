@@ -52,21 +52,25 @@ if __name__ == "__main__":
     partitioned_groups = []
 
     def gen_groups(low, high):
-        return ['GROUP'+str(i) for i in range(low, high)]
+        return ['GROUP'+str(i).zfill(2) for i in range(low, high)]
     for i in range(len(pb)-1):
         partitioned_groups.append(gen_groups(pb[i], pb[i+1]))
 
     """ partitioned_groups will look something like this given -p 0,3,6,10:
     [['GROUP0', 'GROUP1', 'GROUP2'], ['GROUP3', 'GROUP4', 'GROUP5'], ['GROUP6', 'GROUP7', 'GROUP8', 'GROUP9']]
+    (Note: this is the result before adding zfill(2))
     """
 
     # Read the input file, construct the data to be partitioned: csv/txt -> DataFrame
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write("started reading input file\n")
+
     records = pd.read_csv(args.input_file,
                           sep="\t",
-                          names=["group_name", "seq", "data"])
+                          names=["group_name", "seq", "data"],
+                          dtype=str)
+
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write(
@@ -75,14 +79,17 @@ if __name__ == "__main__":
     # Partition the records: DataFrame -> DataFrame
     # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
     dfs = dict(tuple(records.groupby('group_name')))
+
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write(
             ">> partitioning the records, groupby() finished, pd.concat() started \n")
+
     sub_records = []
     for i in range(len(partitioned_groups)):
         sub_records.append(pd.concat([dfs[group]
                                       for group in partitioned_groups[i]]))
+
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write(
@@ -100,7 +107,7 @@ if __name__ == "__main__":
         for object_id in object_ids:
             # [9,-1) is to remove prefix and suffix "ObjectID(" and ")"
             f.write(str(object_id)[9:-1]+"\n")
-    
+
     cpp_proc = ["./send-to-dest", "-server_hosts"]
     cpp_proc.append(args.hosts)
     subprocess.call(cpp_proc)

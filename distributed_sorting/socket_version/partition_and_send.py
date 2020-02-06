@@ -12,7 +12,8 @@ parser.add_argument("-i", "--input_file",
 parser.add_argument("-p", "--partition_boundaries",
                     help="The boundaries to partition the records.")
 parser.add_argument("--hosts", help="The receivers")
-parser.add_argument("--port", help="Port to use, default is 5001", default=5001)
+parser.add_argument(
+    "--port", help="Port to use, default is 5001", default=5001)
 
 
 if __name__ == "__main__":
@@ -23,12 +24,13 @@ if __name__ == "__main__":
     partitioned_groups = []
 
     def gen_groups(low, high):
-        return ['GROUP'+str(i) for i in range(low, high)]
+        return ['GROUP'+str(i).zfill(2) for i in range(low, high)]
     for i in range(len(pb)-1):
         partitioned_groups.append(gen_groups(pb[i], pb[i+1]))
 
     """ partitioned_groups will look something like this given -p 0,3,6,10:
     [['GROUP0', 'GROUP1', 'GROUP2'], ['GROUP3', 'GROUP4', 'GROUP5'], ['GROUP6', 'GROUP7', 'GROUP8', 'GROUP9']]
+    (Note: this is the result before adding zfill(2))
     """
 
     hosts = args.hosts.split(',')
@@ -38,9 +40,12 @@ if __name__ == "__main__":
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write("started reading input file\n")
+
     records = pd.read_csv(args.input_file,
                           sep="\t",
-                          names=["group_name", "seq", "data"])
+                          names=["group_name", "seq", "data"],
+                          dtype=str)
+
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write(
@@ -48,7 +53,9 @@ if __name__ == "__main__":
 
     # Partition the records: DataFrame -> DataFrame
     # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
+
     dfs = dict(tuple(records.groupby('group_name')))
+
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write(
@@ -57,6 +64,7 @@ if __name__ == "__main__":
     for i in range(len(partitioned_groups)):
         sub_records.append(pd.concat([dfs[group]
                                       for group in partitioned_groups[i]]))
+
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write("pd.concat() finished, finished partitioning the records, started serializing the data to pkl files\n")

@@ -49,8 +49,6 @@ def receive_file(conn, address):
     progress = tqdm.tqdm(range(
         filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
 
-    if not os.path.exists(socket.gethostname()+"/recved"):
-        os.makedirs(socket.gethostname()+"/recved")
     with open(socket.gethostname()+"/recved/"+filename, "wb") as f:
         for _ in progress:
             # read 1024 bytes from the socket (receive)
@@ -76,6 +74,10 @@ def receive_file(conn, address):
 if __name__ == "__main__":
     args = parser.parse_args()
     num_of_nodes = int(args.number_of_nodes)
+
+    if not os.path.exists(socket.gethostname()+"/recved"):
+        os.makedirs(socket.gethostname()+"/recved")
+
     # create the listening socket
     s = socket.socket()
 

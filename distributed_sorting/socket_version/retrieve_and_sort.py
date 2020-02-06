@@ -13,7 +13,8 @@ if __name__ == "__main__":
     unpickled_dfs = []
     with os.scandir(socket.gethostname()+'/recved/') as pkl_files:
         for pkl_file in pkl_files:
-            unpickled_dfs.append(pd.read_pickle(socket.gethostname()+'/recved/'+pkl_file.name))
+            unpickled_dfs.append(pd.read_pickle(
+                socket.gethostname()+'/recved/'+pkl_file.name))
 
     with open(socket.gethostname()+'_r.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
@@ -33,7 +34,8 @@ if __name__ == "__main__":
         f.write("finished sorting the records, started writing to csv\n")
 
     all_records.reset_index(drop=True, inplace=True)
-    all_records.to_csv(socket.gethostname()+'.csv', sep='\t', index=False)
+    all_records.to_csv(socket.gethostname()+'.csv',
+                       sep='\t', header=False, index=False)
 
     with open(socket.gethostname()+'_r.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
