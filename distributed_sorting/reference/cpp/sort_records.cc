@@ -55,30 +55,30 @@ int main(int argc, char **argv)
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     auto host_name = boost::asio::ip::host_name();
     std::ofstream log_file;
-    log_file.open(host_name + "_sort_records.log", std::ios_base::app);
+    log_file.open(host_name + "_sort_records_by_str_comp.log", std::ios_base::app);
 
-    // Read the input file, construct the data to be sorted
     log_file << PrettyPrintCurrentTime() << "started reading from input file" << std::endl;
+    
     std::vector<Record> records;
-
     std::ifstream in_file(FLAGS_input_file);
     std::string group, seq, data;
     while (in_file >> group >> seq >> data)
     {
         records.push_back({group, std::stoi(seq), data});
     }
+    
     log_file << PrettyPrintCurrentTime() << "finished reading from input file, started sorting" << std::endl;
 
-    // Sort the data
     std::sort(records.begin(), records.end(), CompareRecords);
+    
     log_file << PrettyPrintCurrentTime() << "finished sorting, started writing to output file" << std::endl;
 
-    // Write result to file for validation
     std::ofstream out_file;
-    out_file.open(host_name + "_sorted_records.txt", std::ios_base::app);
+    out_file.open(host_name + "_records_sorted_by_str_comp.txt", std::ios_base::app);
     for (auto &record : records)
     {
         out_file << record.group_name << "\t" << record.seq << "\t" << record.data << std::endl;
     }
+    
     log_file << PrettyPrintCurrentTime() << "finished writing to output file" << std::endl;
 }
