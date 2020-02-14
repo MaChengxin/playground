@@ -17,8 +17,7 @@ if __name__ == "__main__":
 
     all_records = pd.read_csv(args.input_file,
                               sep="\t",
-                              names=["group_name", "seq", "data"],
-                              dtype=str)
+                              names=["group_name", "seq", "data"])
 
     with open(socket.gethostname()+'.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
