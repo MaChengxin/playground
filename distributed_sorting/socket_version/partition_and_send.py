@@ -7,11 +7,12 @@ from sender import send_file
 import socket
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input_file",
-                    help="The input file containing data to be sorted.")
+parser.add_argument("--map_file",
+                    help="The file containing mapping between hostnames and input files.")
 parser.add_argument("-p", "--partition_boundaries",
                     help="The boundaries to partition the records.")
-parser.add_argument("--hosts", help="The receivers")
+parser.add_argument(
+    "--host_file", help="The file containing the hostnames of the receivers")
 parser.add_argument(
     "--port", help="Port to use, default is 5001", default=5001)
 
@@ -33,7 +34,9 @@ if __name__ == "__main__":
     (Note: this is the result before adding zfill(2))
     """
 
-    hosts = args.hosts.split(',')
+    with open(args.host_file) as host_file:
+        hosts = host_file.readline()
+    hosts = hosts.strip("\n").split(",")
     port = int(args.port)
 
     # Read the input file, construct the data to be partitioned: csv/txt -> DataFrame
@@ -41,7 +44,11 @@ if __name__ == "__main__":
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write("started reading input file\n")
 
-    records = pd.read_csv(args.input_file,
+    with open(args.map_file) as map_file:
+        mapping = map_file.readlines()
+        mapping = dict(m.strip("\n").split(":") for m in mapping)
+
+    records = pd.read_csv(mapping[socket.gethostname().split(".")[0]],
                           sep="\t",
                           names=["group_name", "seq", "data"])
 
