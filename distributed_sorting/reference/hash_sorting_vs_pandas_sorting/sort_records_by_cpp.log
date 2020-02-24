@@ -1,0 +1,6 @@
+[Mon Feb 24 20:48:09 2020]: started reading from input file
+[Mon Feb 24 20:52:33 2020]: finished reading from input file, started hashing
+[Mon Feb 24 20:52:43 2020]: finished hashing, started sorting
+[Mon Feb 24 20:52:51 2020]: finished sorting, started constructing sorted records
+[Mon Feb 24 20:53:52 2020]: finished constructing sorted records, started writing to output file
+[Mon Feb 24 20:57:19 2020]: finished writing to output file
