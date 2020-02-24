@@ -36,9 +36,15 @@ bool CompareGroupName(const std::string &a, const std::string &b)
  * https://stackoverflow.com/questions/3574680/sort-based-on-multiple-things-in-c*/
 bool CompareRecords(const Record &a, const Record &b)
 {
-    if (CompareGroupName(a.group_name, b.group_name))
+    // if (CompareGroupName(a.group_name, b.group_name))
+    //     return true;
+    // if (CompareGroupName(b.group_name, a.group_name))
+    //     return false;
+
+    int str_cmp_result = strcmp(a.group_name.c_str(), b.group_name.c_str());
+    if (str_cmp_result < 0)
         return true;
-    if (CompareGroupName(b.group_name, a.group_name))
+    if (str_cmp_result > 0)
         return false;
 
     // a == b for primary condition, go to secondary condition
