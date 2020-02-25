@@ -1,0 +1,7 @@
+[2020-02-25 21:38:20]: started reading input file 32m_fake_SAM.txt
+[2020-02-25 21:39:30]: finished reading input file, started converting to Arrow RecordBatch
+[2020-02-25 21:39:45]: finished converting to Arrow RecordBatch, started converting to DataFrame for sorting
+[2020-02-25 21:40:01]: finished converting to DataFrame
+[2020-02-25 21:40:01]: started sorting
+[2020-02-25 21:40:49]: finished sorting, started converting to Arrow RecordBatch
+[2020-02-25 21:41:06]: finished converting to Arrow RecordBatch

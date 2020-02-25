@@ -1,0 +1,7 @@
+[2020-02-25 21:37:30]: started reading input file 32m_ints.txt
+[2020-02-25 21:37:54]: finished reading input file, started converting to Arrow RecordBatch
+[2020-02-25 21:37:54]: finished converting to Arrow RecordBatch, started converting to DataFrame for sorting
+[2020-02-25 21:37:54]: finished converting to DataFrame
+[2020-02-25 21:37:54]: started sorting
+[2020-02-25 21:38:19]: finished sorting, started converting to Arrow RecordBatch
+[2020-02-25 21:38:19]: finished converting to Arrow RecordBatch
