@@ -17,6 +17,20 @@ parser.add_argument(
     "--port", help="Port to use, default is 5001", default=5001)
 
 
+def package_records(records, partitioned_groups, packaged_records):
+    """ Package the records according to partitioned_groups.
+    """
+
+    # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
+    grouped_records = dict(tuple(records.groupby('group_name')))
+
+    for i in range(len(packaged_records)):
+        for group in partitioned_groups[i]:
+            packaged_records[i].append(grouped_records[group])
+
+def pickle_records_to_file(records, file_name):
+    records.to_pickle(file_name)
+
 if __name__ == "__main__":
     # Parse the arguments
     args = parser.parse_args()
@@ -54,36 +68,73 @@ if __name__ == "__main__":
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write(
-            "finished reading input file, started partitioning the records, started groupby()\n")
+        f.write("finished reading input file, started splitting the records\n")
+
+    # or len(records), or records.shape[0]
+    rows_of_records = len(records.index)
+    num_proc_for_partitioning = 10
+    rows_of_a_splitted_record = int(rows_of_records/num_proc_for_partitioning)
+
+    splitted_records = []
+    for i in range(num_proc_for_partitioning):
+        splitted_records.append(
+            records.iloc[i*rows_of_a_splitted_record: (i+1)*rows_of_a_splitted_record])
+
+    with open(socket.gethostname()+'_s.log', 'a') as f:
+        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
+        f.write("finished splitting the records, started partitioning the records\n")
 
     # Partition the records: DataFrame -> DataFrame
-    # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
+    
+    # Serial partitioning
+    # WARNING: DON'T USE to_be_pickled = [[]] * len(partitioned_groups)
+    packaged_records = [[] for _ in range(len(partitioned_groups))]
+    for records in splitted_records:
+        package_records(records, partitioned_groups, packaged_records)
 
-    dfs = dict(tuple(records.groupby('group_name')))
+    # Parallel partitioning
+    # procs = []
+    # for records in splitted_records:
+    #     proc = Process(target=package_records, args=(records, partitioned_groups, packaged_records))
+    #     procs.append(proc)
+    #     proc.daemon = True
+    #     proc.start()
+
+    # for proc in procs:
+    #     proc.join()
+
+    to_be_pickled = [pd.concat(records_in_a_package) for records_in_a_package in packaged_records]
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write(
-            ">> partitioning the records, groupby() finished, pd.concat() started \n")
-    sub_records = []
-    for i in range(len(partitioned_groups)):
-        sub_records.append(pd.concat([dfs[group]
-                                      for group in partitioned_groups[i]]))
-
-    with open(socket.gethostname()+'_s.log', 'a') as f:
-        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("pd.concat() finished, finished partitioning the records, started serializing the data to pkl files\n")
+            "finished partitioning the records, started serializing the data to pkl files\n")
 
     # Serialize the data to pkl files: DataFrame -> pkl
     if not os.path.exists(socket.gethostname()+"/to_be_sent"):
         os.makedirs(socket.gethostname()+"/to_be_sent")
     pkl_files = []
-    for index, records in enumerate(sub_records):
+
+    # Serial serialization
+    # for index, records in enumerate(to_be_pickled):
+    #     pkl_file = socket.gethostname()+"/to_be_sent/" + \
+    #         socket.gethostname()+"_"+str(index)+".pkl"
+    #     pkl_files.append(pkl_file)
+    #     records.to_pickle(pkl_file)
+
+    # Parallel serialization
+    procs = []
+    for index, records in enumerate(to_be_pickled):
         pkl_file = socket.gethostname()+"/to_be_sent/" + \
             socket.gethostname()+"_"+str(index)+".pkl"
         pkl_files.append(pkl_file)
-        records.to_pickle(pkl_file)
+        proc = Process(target=pickle_records_to_file, args=(records, pkl_file))
+        procs.append(proc)
+        proc.daemon = True
+        proc.start()
+
+    for proc in procs:
+        proc.join()
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
