@@ -19,7 +19,7 @@ def send_file(filename, host, port):
     s = socket.socket()
     print(f"[+] Connecting to {host}:{port}")
     s.connect((host, port))
-    print("[+] Connected.")
+    print(f"[+] Connected to {host}:{port}")
 
     # send the filename and filesize
     s.send(f"{filename}{SEPARATOR}{filesize}".encode())

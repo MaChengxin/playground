@@ -93,7 +93,7 @@ if __name__ == "__main__":
     while to_be_recved_file_counter < num_of_nodes:
         # accept connection if there is any
         conn, address = s.accept()
-        print(f"[+] {address} is connected.")
+        print(f"[+] Receiver says: {address} is connected.")
 
         to_be_recved_file_counter += 1
         # print(f"Counter of file to be received: {to_be_recved_file_counter}")
