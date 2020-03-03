@@ -3,8 +3,11 @@ from datetime import datetime
 from multiprocessing import Process
 import os
 import pandas as pd
+# import pyarrow.plasma as plasma
 from sender import send_file
 import socket
+
+# from plasma_interface import put_df, get_dfs
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--map_file",
@@ -17,19 +20,22 @@ parser.add_argument(
     "--port", help="Port to use, default is 5001", default=5001)
 
 
-def package_records(records, partitioned_groups, packaged_records):
-    """ Package the records according to partitioned_groups.
+def partition_records(original_records, partitioned_groups, partitioned_records):
+    """ Partition original_records according to partitioned_groups.
+    Reference: https://stackoverflow.com/questions/23691133/split-pandas-dataframe-based-on-groupby
     """
+    assert len(partitioned_groups) == len(partitioned_records)
 
-    # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
-    grouped_records = dict(tuple(records.groupby('group_name')))
+    gb = original_records.groupby('group_name')
 
-    for i in range(len(packaged_records)):
-        for group in partitioned_groups[i]:
-            packaged_records[i].append(grouped_records[group])
+    for i in range(len(partitioned_records)):
+        for g in partitioned_groups[i]:
+            partitioned_records[i].append(gb.get_group(g))
+
 
 def pickle_records_to_file(records, file_name):
     records.to_pickle(file_name)
+
 
 if __name__ == "__main__":
     # Parse the arguments
@@ -85,25 +91,13 @@ if __name__ == "__main__":
         f.write("finished splitting the records, started partitioning the records\n")
 
     # Partition the records: DataFrame -> DataFrame
-    
-    # Serial partitioning
     # WARNING: DON'T USE to_be_pickled = [[]] * len(partitioned_groups)
-    packaged_records = [[] for _ in range(len(partitioned_groups))]
+    partitioned_records = [[] for _ in range(len(partitioned_groups))]
     for records in splitted_records:
-        package_records(records, partitioned_groups, packaged_records)
+        partition_records(records, partitioned_groups, partitioned_records)
 
-    # Parallel partitioning
-    # procs = []
-    # for records in splitted_records:
-    #     proc = Process(target=package_records, args=(records, partitioned_groups, packaged_records))
-    #     procs.append(proc)
-    #     proc.daemon = True
-    #     proc.start()
-
-    # for proc in procs:
-    #     proc.join()
-
-    to_be_pickled = [pd.concat(records_in_a_package) for records_in_a_package in packaged_records]
+    to_be_pickled = [pd.concat(records_in_a_partition)
+                     for records_in_a_partition in partitioned_records]
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
