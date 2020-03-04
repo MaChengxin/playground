@@ -11,9 +11,10 @@ import pyarrow as pa
 import pyarrow.plasma as plasma
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input_file",
-                    help="The input file containing data to be sorted.")
-parser.add_argument("--hosts", help="The receivers")
+parser.add_argument(
+    "--map_file", help="The file containing mapping between hostnames and input files.")
+parser.add_argument(
+    "--host_file", help="The file containing the hostnames of the receivers")
 parser.add_argument("-p", "--partition_boundaries",
                     help="The boundaries to partition the records.")
 
@@ -66,7 +67,11 @@ if __name__ == "__main__":
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
         f.write("started reading input file\n")
 
-    records = pd.read_csv(args.input_file,
+    with open(args.map_file) as map_file:
+        mapping = map_file.readlines()
+        mapping = dict(m.strip("\n").split(":") for m in mapping)
+
+    records = pd.read_csv(mapping[socket.gethostname().split(".")[0]],
                           sep="\t",
                           names=["group_name", "seq", "data"])
 
@@ -107,6 +112,10 @@ if __name__ == "__main__":
             # [9,-1) is to remove prefix and suffix "ObjectID(" and ")"
             f.write(str(object_id)[9:-1]+"\n")
 
+    with open(args.host_file) as host_file:
+        hosts = host_file.readline()
+    hosts = hosts.strip("\n")
+
     cpp_proc = ["./send-to-dest", "-server_hosts"]
-    cpp_proc.append(args.hosts)
+    cpp_proc.append(hosts)
     subprocess.call(cpp_proc)
