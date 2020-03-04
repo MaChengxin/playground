@@ -19,6 +19,19 @@ parser.add_argument("-p", "--partition_boundaries",
                     help="The boundaries to partition the records.")
 
 
+def partition_records(original_records, partitioned_groups, partitioned_records):
+    """ Partition original_records according to partitioned_groups.
+    Reference: https://stackoverflow.com/questions/23691133/split-pandas-dataframe-based-on-groupby
+    """
+    assert len(partitioned_groups) == len(partitioned_records)
+
+    gb = original_records.groupby('group_name')
+
+    for i in range(len(partitioned_records)):
+        for g in partitioned_groups[i]:
+            partitioned_records[i].append(gb.get_group(g))
+
+
 def put_df_to_plasma(df, client):
     """ Precondition: the Plasma Object Store has been opened.
         Returns the object ID.
@@ -77,31 +90,21 @@ if __name__ == "__main__":
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write(
-            "finished reading input file, started partitioning the records, started groupby()\n")
+        f.write("finished reading input file, started partitioning the records\n")
 
-    # Partition the records: DataFrame -> DataFrame
-    # https://stackoverflow.com/questions/47769453/pandas-split-dataframe-to-multiple-by-unique-values-rows
-    dfs = dict(tuple(records.groupby('group_name')))
-
-    with open(socket.gethostname()+'_s.log', 'a') as f:
-        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write(
-            ">> partitioning the records, groupby() finished, pd.concat() started \n")
-
-    sub_records = []
-    for i in range(len(partitioned_groups)):
-        sub_records.append(pd.concat([dfs[group]
-                                      for group in partitioned_groups[i]]))
+    partitioned_records = [[] for _ in range(len(partitioned_groups))]
+    partition_records(records, partitioned_groups, partitioned_records)
+    partitioned_records = [pd.concat(records_in_a_partition)
+                           for records_in_a_partition in partitioned_records]
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write(
-            "pd.concat() finished, finished partitioning the records, started putting them to Plasma\n")
+        f.write("finished partitioning the records, started putting them to Plasma\n")
 
     # Store the partitioned records to Plasma, to be retrived by C++: DataFrame -> RecordBatch -> Plasma Object
     client = plasma.connect('/tmp/plasma')
-    object_ids = [put_df_to_plasma(records, client) for records in sub_records]
+    object_ids = [put_df_to_plasma(records, client)
+                  for records in partitioned_records]
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
