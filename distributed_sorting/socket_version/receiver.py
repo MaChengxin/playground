@@ -67,8 +67,8 @@ def receive_file(conn, address):
     increment_num_recved_files()
     with open(socket.gethostname()+'_r.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("finished receiving a file, ")
-        f.write(f"number of received files: {num_recved_files.value}\n")
+        f.write("finished receiving " + filename + "\n")
+        # f.write(f"number of received files: {num_recved_files.value}\n")
 
 
 if __name__ == "__main__":
