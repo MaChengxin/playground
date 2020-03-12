@@ -3,11 +3,9 @@ from datetime import datetime
 from multiprocessing import Process
 import os
 import pandas as pd
-# import pyarrow.plasma as plasma
 from sender import send_file
 import socket
 
-# from plasma_interface import put_df, get_dfs
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--map_file",
@@ -74,28 +72,12 @@ if __name__ == "__main__":
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
         f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("finished reading input file, started splitting the records\n")
-
-    # or len(records), or records.shape[0]
-    rows_of_records = len(records.index)
-    num_proc_for_partitioning = 10
-    rows_of_a_splitted_record = int(rows_of_records/num_proc_for_partitioning)
-
-    splitted_records = []
-    for i in range(num_proc_for_partitioning):
-        splitted_records.append(
-            records.iloc[i*rows_of_a_splitted_record: (i+1)*rows_of_a_splitted_record])
-
-    with open(socket.gethostname()+'_s.log', 'a') as f:
-        f.write('[' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ']: ')
-        f.write("finished splitting the records, started partitioning the records\n")
+        f.write("finished reading input file, started partitioning the records\n")
 
     # Partition the records: DataFrame -> DataFrame
     # WARNING: DON'T USE to_be_pickled = [[]] * len(partitioned_groups)
     partitioned_records = [[] for _ in range(len(partitioned_groups))]
-    for records in splitted_records:
-        partition_records(records, partitioned_groups, partitioned_records)
-
+    partition_records(records, partitioned_groups, partitioned_records)
     to_be_pickled = [pd.concat(records_in_a_partition)
                      for records_in_a_partition in partitioned_records]
 
