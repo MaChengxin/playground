@@ -67,7 +67,13 @@ if __name__ == "__main__":
         f.write("finished reading input file, started partitioning the records\n")
 
     # Reference: https://stackoverflow.com/questions/21441259/pandas-groupby-range-of-values
-    gb = records.groupby(pd.cut(records["key"], len(hosts)))
+    # gb = records.groupby(pd.cut(records["key"], len(hosts)))
+    # Sometimes we need to specify the bins explicitly to get the correct result
+    gb = records.groupby(pd.cut(records["key"],
+                                # [0, 120720719+1, 241441439+1, 370720719+1, 491441439+1, 620720719+1, 741441439+1, 870720719+1, 991441439+1]
+                                [0, 160960959+1, 330480479+1, 491441439+1, 660960959+1, 830480479+1, 991441439+1],
+                                # [0, 491441439+1, 991441439+1],
+                                right=False))
     partitioned_records = [gb.get_group(g) for g in gb.groups]
 
     with open(socket.gethostname()+'_s.log', 'a') as f:
