@@ -184,10 +184,26 @@ rects7 = ax.bar(x + width/2, par_means, width, yerr=par_std, label="partitioning
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel("Time (s)")
 # ax.set_title("")
-ax.set_xticks(x)
-ax.set_xticklabels(nums_nodes)
+# ax.set_xticks(x)
+ax.set_xticks([])
+# ax.set_xticklabels(nums_nodes)
 ax.legend()
 
-fig.tight_layout()
+# Add a table at the bottom of the axes
+# https://matplotlib.org/3.1.1/gallery/misc/table_demo.html#sphx-glr-gallery-misc-table-demo-py
+average_durations = [sum(val) for val in zip(sort_means, mer_means, deser_means, comm_means, ser_means, par_means)]
+overall_speedup = [round(72/t, 2) for t in overall_durations]
+average_speedup = [round(72/t, 2) for t in average_durations]
+overhead = [sum(val) for val in zip(mer_means, deser_means, comm_means, ser_means, par_means)]
+overhead_vs_sorting = [round(o/s, 2) for o, s in zip(overhead, sort_means)]
+
+plt.table(cellText=[overall_speedup, average_speedup, overhead_vs_sorting],
+          rowLabels=["overall speedup", "average speedup", "overhead vs sorting"],
+          rowLoc="right",
+          colLabels=nums_nodes,
+          cellLoc="center",
+          loc="bottom")
+
+plt.subplots_adjust(left=0.26, right=0.95, bottom=0.16, top=1.0)
 plt.savefig("scalability.pdf")
 # plt.show()
