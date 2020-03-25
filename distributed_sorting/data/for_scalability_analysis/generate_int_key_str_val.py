@@ -3,7 +3,7 @@ import numpy as np
 import os
 import random
 
-NUM_OF_GROUPS = 100
+NUM_OF_GROUPS = 120
 NUM_RECORDS_PER_GROUP = np.lcm.reduce([i*2 for i in range(1, 17)])  # 1441440
 
 
