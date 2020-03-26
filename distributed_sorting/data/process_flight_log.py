@@ -194,16 +194,17 @@ ax.legend()
 average_durations = [sum(val) for val in zip(sort_means, mer_means, deser_means, comm_means, ser_means, par_means)]
 overall_speedup = [round(72/t, 2) for t in overall_durations]
 average_speedup = [round(72/t, 2) for t in average_durations]
+theoretical_speedup = [round(72/t, 2) for t in sort_means]
 overhead = [sum(val) for val in zip(mer_means, deser_means, comm_means, ser_means, par_means)]
 overhead_vs_sorting = [round(o/s, 2) for o, s in zip(overhead, sort_means)]
 
-plt.table(cellText=[overall_speedup, average_speedup, overhead_vs_sorting],
-          rowLabels=["overall speedup", "average speedup", "overhead vs sorting"],
+plt.table(cellText=[overall_speedup, average_speedup, theoretical_speedup, overhead_vs_sorting],
+          rowLabels=["overall speedup", "average speedup", "theoretical speedup", "overhead vs sorting"],
           rowLoc="right",
           colLabels=nums_nodes,
           cellLoc="center",
           loc="bottom")
 
-plt.subplots_adjust(left=0.26, right=0.95, bottom=0.16, top=1.0)
-plt.savefig("scalability.pdf")
+plt.subplots_adjust(left=0.265, right=0.99, bottom=0.19, top=1.0)
+plt.savefig("scalability_all_ints.pdf")
 # plt.show()
