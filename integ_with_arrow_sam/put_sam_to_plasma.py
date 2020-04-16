@@ -5,14 +5,15 @@ Useful links:
 
 import pandas as pd
 import pyarrow as pa
-import pyarrow.plasma as plasma
+from pyarrow import plasma
 
-SAM_FIELDS = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR',
-              'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', 'OPTIONAL']
+SAM_FIELDS = ["QNAME", "FLAG", "RNAME", "POS", "MAPQ", "CIGAR",
+              "RNEXT", "PNEXT", "TLEN", "SEQ", "QUAL", "OPTIONAL"]
 
 
 def put_df_to_object_store(df, client):
     """ Precondition: the Plasma Object Store has been opened.
+    e.g. by: plasma_store -m 1000000000 -s /tmp/plasma
     Returns the object ID.
     """
     record_batch = pa.RecordBatch.from_pandas(df)
@@ -51,9 +52,9 @@ if __name__ == "__main__":
 
     df = pd.DataFrame.from_records(split_lines, columns=SAM_FIELDS)
 
-    df = df.astype({'FLAG': 'int64', 'POS': 'int64',
-                    'MAPQ': 'int64', 'PNEXT': 'int64', 'TLEN': 'int64'})
+    df = df.astype({"FLAG": "int64", "POS": "int64", "MAPQ": "int64",
+                    "PNEXT": "int64", "TLEN": "int64"})
     rb = pa.RecordBatch.from_pandas(df)
 
-    # client = plasma.connect('/tmp/store')
-    # object_id = put_df_to_object_store(df, client)
+    client = plasma.connect("/tmp/plasma")
+    object_id = put_df_to_object_store(df, client)
