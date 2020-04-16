@@ -67,8 +67,8 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       object_id_strs = object_id_strs + object_id.hex() + " ";
     }
 
-    std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
-    std::system(python_cmd.c_str());
+    // std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
+    // std::system(python_cmd.c_str());
 
     if (FLAGS_debug_mode) {
       PrintRecordBatchesInPlasma(object_ids_);
@@ -76,8 +76,6 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
   }
 
   void PrintRecordBatchesInPlasma(std::vector<plasma::ObjectID> object_ids) {
-    std::cout << "Check if the Record Batches are complete: " << std::endl;
-
     // Start up and connect a Plasma client
     plasma::PlasmaClient client;
     ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
@@ -86,8 +84,19 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       std::cout << "Object ID: " << object_id.hex() << std::endl;
       std::shared_ptr<arrow::RecordBatch> record_batch;
       record_batch = GetRecordBatchFromPlasma(object_id, client);
-      std::cout << "record_batch->column(2)->ToString()"
+
+      std::cout << "record_batch->schema()->ToString(): "
+                << record_batch->schema()->ToString() << std::endl;
+      std::cout << "record_batch->num_columns(): "
+                << record_batch->num_columns() << std::endl;
+      std::cout << "record_batch->num_rows(): "
+                << record_batch->num_rows() << std::endl;
+      std::cout << "record_batch->column(0)->ToString(): "
+                << record_batch->column(0)->ToString() << std::endl;
+      std::cout << "record_batch->column(2)->ToString(): "
                 << record_batch->column(2)->ToString() << std::endl;
+      std::cout << "record_batch->column(3)->ToString(): "
+                << record_batch->column(3)->ToString() << std::endl;
     }
 
     // Disconnect the client

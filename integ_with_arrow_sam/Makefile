@@ -1,4 +1,5 @@
 all: send-to-dest receive-and-store
+	rm -f *o
 
 send-to-dest: send_to_dest.o common.o in_memory_storage.o sender.o
 	g++ -g -o send-to-dest send_to_dest.o common.o in_memory_storage.o sender.o `pkg-config --cflags --libs arrow arrow-flight arrow-glib gflags plasma` -lboost_system
@@ -23,4 +24,4 @@ sender.o: sender.cc sender.h
 
 .PHONY: clean
 clean:
-	rm -f *o send-to-dest receive-and-store
+	rm -f send-to-dest receive-and-store
