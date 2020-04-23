@@ -2,15 +2,15 @@ all: send-to-dest receive-and-store
 	rm -f *o
 
 send-to-dest: send_to_dest.o common.o in_memory_storage.o sender.o
-	g++ -g -o send-to-dest send_to_dest.o common.o in_memory_storage.o sender.o `pkg-config --cflags --libs arrow arrow-flight arrow-glib gflags plasma` -lboost_system
+	g++ -g -o send-to-dest send_to_dest.o common.o in_memory_storage.o sender.o `pkg-config --cflags --libs arrow arrow-flight gflags plasma` -lboost_system
 
 receive-and-store: receive_and_store.o common.o in_memory_storage.o
-	g++ -g -o receive-and-store receive_and_store.o common.o in_memory_storage.o `pkg-config --cflags --libs arrow arrow-flight arrow-glib gflags plasma` -lboost_system
+	g++ -g -o receive-and-store receive_and_store.o common.o in_memory_storage.o `pkg-config --cflags --libs arrow arrow-flight gflags plasma` -lboost_system
 
 send_to_dest.o: send_to_dest.cc
 	g++ -g -c send_to_dest.cc
 
-receive_and_store.o:
+receive_and_store.o: receive_and_store.cc
 	g++ -g -c receive_and_store.cc
 
 common.o: common.cc common.h
