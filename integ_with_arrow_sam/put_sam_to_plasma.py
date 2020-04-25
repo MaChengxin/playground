@@ -11,7 +11,7 @@ SAM_FIELDS = ["QNAME", "FLAG", "RNAME", "POS", "MAPQ", "CIGAR",
               "RNEXT", "PNEXT", "TLEN", "SEQ", "QUAL", "OPTIONAL"]
 
 
-def put_df_to_object_store(df, client):
+def put_df_to_object_store(client, df, object_id):
     """ Precondition: the Plasma Object Store has been opened.
     e.g. by: plasma_store -m 1000000000 -s /tmp/plasma
     Returns the object ID.
@@ -24,9 +24,7 @@ def put_df_to_object_store(df, client):
     stream_writer.write_batch(record_batch)
     data_size = mock_output_stream.size()
 
-    # Generate an ID and allocate a buffer in the object store for the serialized DataFrame
-    object_id = plasma.ObjectID(b"0FF1CE00C0FFEE00BEEF")
-
+    # Allocate a buffer in the object store for the serialized DataFrame
     buf = client.create(object_id, data_size)
 
     # Write the serialized DataFrame to the object store
@@ -37,11 +35,19 @@ def put_df_to_object_store(df, client):
     # Seal the object
     client.seal(object_id)
 
+    print("Finished putting a DataFrame to Plasma. Object ID: " +
+          object_id.binary().decode())
+
+
+def generate_object_id(offset):
+    id_base = b"0FF1CEBEEFC0FFEE"
+    encocded_offset = str(offset).zfill(4).encode("ASCII")
+    object_id = plasma.ObjectID(id_base+encocded_offset)
     return object_id
 
 
 if __name__ == "__main__":
-    with open("sample.sam") as f:
+    with open("2k_reads.sam") as f:
         lines = f.readlines()
 
     split_lines = []
@@ -54,7 +60,10 @@ if __name__ == "__main__":
 
     df = df.astype({"FLAG": "int64", "POS": "int64", "MAPQ": "int64",
                     "PNEXT": "int64", "TLEN": "int64"})
-    rb = pa.RecordBatch.from_pandas(df)
 
     client = plasma.connect("/tmp/plasma")
-    object_id = put_df_to_object_store(df, client)
+
+    gb = df.groupby("RNAME")
+
+    for i, g in enumerate(gb.groups):
+        put_df_to_object_store(client, gb.get_group(g), generate_object_id(i))
