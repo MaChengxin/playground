@@ -1,76 +1,75 @@
-#include <gflags/gflags.h>
-#include <boost/asio/ip/host_name.hpp>
+#include <map>
 
-#include "arrow/util/thread_pool.h"
+#include <boost/algorithm/string.hpp>
+#include <boost/asio/ip/host_name.hpp>
+#include <gflags/gflags.h>
+
+#include <arrow/util/thread_pool.h>
 
 #include "common.h"
 #include "sender.h"
 
-DEFINE_string(server_hosts, "localhost", "Host(s) where the server(s) is/are running on");
 DEFINE_int32(server_port, 30103, "The port to connect to");
 
-// Similar to binascii.unhexlify in Python, but dedicated to string of 40 characters
-std::string ConvertObjectIDString(std::string fourty_chars) {
-  std::string twenty_chars;
-  int first;
-  int second;
-  for (int i = 0; i < 39; i = i + 2) {
-    first = std::stoi(fourty_chars.substr(i, 1), nullptr, 16);
-    second = std::stoi(fourty_chars.substr(i + 1, 1), nullptr, 16);
-    char new_char = (first << 4) + second;
-    twenty_chars += new_char;
-  }
-  return twenty_chars;
+// https://stackoverflow.com/a/1842976/5723556
+typedef std::map<std::string, std::pair<std::string, plasma::ObjectID>> DispatchPlan;
+typedef DispatchPlan::const_iterator DispatchPlanIter;
+
+arrow::Status SendToDest(int argc, char **argv) {
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    auto host_name = boost::asio::ip::host_name();
+    std::ofstream log_file;
+    log_file.open(host_name + "_s.log", std::ios_base::app);
+    log_file << PrettyPrintCurrentTime() << "send-to-dest started" << std::endl;
+
+    // Get the Object IDs and their destinations
+    std::vector<plasma::ObjectID> object_ids;
+    std::vector<std::string> destinations;
+
+    std::ifstream in_file(host_name + "_dispatch_plan.txt");
+    std::string dispatch_plan_entry;
+    // https://stackoverflow.com/a/16889840/5723556
+    std::vector<std::string> dispatch_plan_fields;
+    std::string delimiters(":,");
+    DispatchPlan dispatch_plan;
+
+    while (in_file >> dispatch_plan_entry) {
+        boost::split(dispatch_plan_fields, dispatch_plan_entry,
+                     boost::is_any_of(delimiters));
+
+        dispatch_plan[dispatch_plan_fields.at(0)] = std::make_pair(
+            dispatch_plan_fields.at(1),
+            plasma::ObjectID::from_binary(dispatch_plan_fields.at(2)));
+    }
+
+
+    // Reference code:
+    // https://github.com/apache/arrow/blob/master/cpp/src/arrow/flight/flight_benchmark.cc
+    ARROW_ASSIGN_OR_RAISE(auto pool, arrow::internal::ThreadPool::Make(4));
+    std::vector<std::future<Status>> tasks;
+
+        for (DispatchPlanIter iter(dispatch_plan.begin()); iter != dispatch_plan.end(); ++iter) {
+        std::cout << iter->first << iter->second.first << '\n';
+              ARROW_ASSIGN_OR_RAISE(auto task,
+                                     pool->Submit(SendToDestinationNode,
+                                                   iter->second.first,
+                                                    FLAGS_server_port,
+                                                    iter->second.second));
+      tasks.push_back(std::move(task));
+    }
+
+    // Wait for tasks to finish
+    for (auto&& task : tasks) {
+      RETURN_NOT_OK(task.get());
+    }
+
+    return arrow::Status::OK();
 }
 
-arrow::Status SendToDest(int argc, char** argv) {
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-  auto host_name = boost::asio::ip::host_name();
-  std::ofstream log_file;
-  log_file.open(host_name + "_s.log", std::ios_base::app);
-  log_file << PrettyPrintCurrentTime() << "send-to-dest started" << std::endl;
-
-  std::vector<std::string> server_hosts = SeparateServerHosts(FLAGS_server_hosts);
-
-  // Get the Object IDs
-  std::vector<plasma::ObjectID> object_ids;
-  std::vector<std::string> object_id_strs;
-  std::ifstream in_file(host_name + "_object_ids.txt");
-  std::string object_id_40_chars;
-  while (in_file >> object_id_40_chars) {
-    object_id_strs.push_back(ConvertObjectIDString(object_id_40_chars));
-  }
-
-  for (auto object_id_str : object_id_strs) {
-    object_ids.push_back(plasma::ObjectID::from_binary(object_id_str));
-  }
-
-  // Reference code:
-  // https://github.com/apache/arrow/blob/master/cpp/src/arrow/flight/flight_benchmark.cc
-  ARROW_ASSIGN_OR_RAISE(auto pool, arrow::internal::ThreadPool::Make(
-                                       static_cast<int>(server_hosts.size())));
-  std::vector<std::future<Status>> tasks;
-
-  int i = 0;
-  for (auto const& server_host : server_hosts) {
-    ARROW_ASSIGN_OR_RAISE(auto task, pool->Submit(SendToDestinationNode, server_host,
-                                                  FLAGS_server_port, object_ids[i]));
-    tasks.push_back(std::move(task));
-    i = i + 1;
-  }
-
-  // Wait for tasks to finish
-  for (auto&& task : tasks) {
-    RETURN_NOT_OK(task.get());
-  }
-
-  return arrow::Status::OK();
-}
-
-int main(int argc, char** argv) {
-  arrow::Status status = SendToDest(argc, argv);
-  if (!status.ok()) {
-    std::cout << status.ToString() << std::endl;
-  }
-  return 0;
+int main(int argc, char **argv) {
+    arrow::Status status = SendToDest(argc, argv);
+    if (!status.ok()) {
+        std::cout << status.ToString() << std::endl;
+    }
+    return 0;
 }

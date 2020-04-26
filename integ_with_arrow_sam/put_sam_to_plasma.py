@@ -1,20 +1,21 @@
-""" Script for processing data in SAM format.
+""" Script to simulate BWA in ArrowSAM.
 Useful links:
     https://github.com/apache/arrow/blob/master/python/examples/plasma/sorting/sort_df.py
 """
+
+import collections
+import socket
 
 import pandas as pd
 import pyarrow as pa
 from pyarrow import plasma
 
-SAM_FIELDS = ["QNAME", "FLAG", "RNAME", "POS", "MAPQ", "CIGAR",
-              "RNEXT", "PNEXT", "TLEN", "SEQ", "QUAL", "OPTIONAL"]
-
+from shared_info import SAM_FIELDS, VALID_CHROMO_NAMES, WORKLOAD_DISTRIBUTION
 
 def put_df_to_object_store(client, df, object_id):
-    """ Precondition: the Plasma Object Store has been opened.
+    """
+    Precondition: the Plasma Object Store has been opened.
     e.g. by: plasma_store -m 1000000000 -s /tmp/plasma
-    Returns the object ID.
     """
     record_batch = pa.RecordBatch.from_pandas(df)
     # Get size of record batch and schema
@@ -35,9 +36,6 @@ def put_df_to_object_store(client, df, object_id):
     # Seal the object
     client.seal(object_id)
 
-    print("Finished putting a DataFrame to Plasma. Object ID: " +
-          object_id.binary().decode())
-
 
 def generate_object_id(offset):
     id_base = b"0FF1CEBEEFC0FFEE"
@@ -47,23 +45,46 @@ def generate_object_id(offset):
 
 
 if __name__ == "__main__":
-    with open("2k_reads.sam") as f:
+    with open("nodeslist.txt", "r") as f:
+        nodes = f.readline().split(",")
+        num_of_nodes = len(nodes)
+
+    dispatch_plan = collections.defaultdict(dict)
+
+    # The logic of assigning destinations for the chromosomes goes here.
+    chromo_groups = WORKLOAD_DISTRIBUTION[num_of_nodes]
+    for i, group in enumerate(chromo_groups):
+        for chromo in group:
+            dispatch_plan[chromo]["destination"] = nodes[i]
+
+    with open("2k_reads.sam", "r") as f:
         lines = f.readlines()
 
-    split_lines = []
-    for line in lines:
-        split_line = line.split("\t", len(SAM_FIELDS)-1)
-        split_line[-1] = split_line[-1].strip("\n")
-        split_lines.append(split_line)
+        split_lines = []
+        for line in lines:
+            split_line = line.split("\t", len(SAM_FIELDS)-1)
+            split_line[-1] = split_line[-1].strip("\n")
+            split_lines.append(split_line)
 
-    df = pd.DataFrame.from_records(split_lines, columns=SAM_FIELDS)
+        df = pd.DataFrame.from_records(split_lines, columns=SAM_FIELDS)
 
-    df = df.astype({"FLAG": "int64", "POS": "int64", "MAPQ": "int64",
-                    "PNEXT": "int64", "TLEN": "int64"})
-
-    client = plasma.connect("/tmp/plasma")
+        df = df.astype({"FLAG": "int64", "POS": "int64", "MAPQ": "int64",
+                        "PNEXT": "int64", "TLEN": "int64"})
 
     gb = df.groupby("RNAME")
 
-    for i, g in enumerate(gb.groups):
-        put_df_to_object_store(client, gb.get_group(g), generate_object_id(i))
+    client = plasma.connect("/tmp/plasma")
+
+    for i, chromo in enumerate(gb.groups):
+        if chromo in VALID_CHROMO_NAMES:
+            obj_id = generate_object_id(i)
+            put_df_to_object_store(client,
+                                   gb.get_group(chromo),
+                                   obj_id)
+            dispatch_plan[chromo]["object_id"] = obj_id.binary().decode()
+
+    with open(socket.gethostname()+"_dispatch_plan.txt", "w") as f:
+        for chromo in dispatch_plan:
+            f.write(chromo + ":" +
+                    dispatch_plan[chromo]["destination"] + "," +
+                    dispatch_plan[chromo]["object_id"] + "\n")

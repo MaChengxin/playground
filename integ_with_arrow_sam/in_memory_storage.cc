@@ -25,6 +25,7 @@ plasma::ObjectID PutRecordBatchToPlasma(
   ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
 
   // Create an object with a random Object ID
+  // TODO: don't use random ID; there seems to be problem with the random ID generator
   plasma::ObjectID object_id = plasma::random_object_id();
   std::shared_ptr<Buffer> buf;
   ARROW_CHECK_OK(client.Create(object_id, data_size, nullptr, 0, &buf));

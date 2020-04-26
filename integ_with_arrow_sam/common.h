@@ -22,12 +22,6 @@
 #include <arrow/util/logging.h>
 #include <plasma/client.h>
 
-struct Record {
-  std::string group_name;
-  int64_t seq;
-  std::string data;
-};
-
 std::string PrettyPrintCurrentTime();
 
 #endif  // COMMON_H

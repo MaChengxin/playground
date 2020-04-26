@@ -6,8 +6,8 @@
 #include "common.h"
 #include "in_memory_storage.h"
 
+// TODO: change this to inferring from nodeslist
 DEFINE_int32(num_nodes, 4, "Number of nodes used for the distributed sorting task");
-DEFINE_string(server_host, "localhost", "Host where the server is running on");
 DEFINE_int32(server_port, 30103, "Server port to listen on");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
@@ -47,6 +47,9 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
 
     // TODO: separate processing received data from DoPut
     // (https://github.com/MaChengxin/playground/issues/2, not a blocking issue)
+    
+    // DON'T ASSUME THERE IS ONLY ONE PLASMA OBJECT FROM ONE OTHER NODE!
+    
     do_put_counter_ += 1;
 
     if (do_put_counter_ == FLAGS_num_nodes) {
@@ -120,7 +123,6 @@ int main(int argc, char** argv) {
   ARROW_CHECK_OK(my_flight_server->Init(options));
   // Exit with a clean error code (0) on SIGTERM
   ARROW_CHECK_OK(my_flight_server->SetShutdownOnSignals({SIGTERM}));
-  std::cout << "Server host: " << FLAGS_server_host << std::endl;
   std::cout << "Server port: " << FLAGS_server_port << std::endl;
   ARROW_CHECK_OK(my_flight_server->Serve());
   return 0;
