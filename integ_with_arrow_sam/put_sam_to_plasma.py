@@ -10,7 +10,31 @@ import pandas as pd
 import pyarrow as pa
 from pyarrow import plasma
 
-from shared_info import SAM_FIELDS, VALID_CHROMO_NAMES, WORKLOAD_DISTRIBUTION
+SAM_FIELDS = ("QNAME", "FLAG", "RNAME", "POS", "MAPQ", "CIGAR",
+              "RNEXT", "PNEXT", "TLEN", "SEQ", "QUAL", "OPTIONAL")
+
+VALID_CHROMO_NAMES = ("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9",
+                      "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17",
+                      "chr18", "chr19", "chr20", "chr21", "chr22", "chrM", "chrX", "chrY")
+
+
+def read_sam_from_file(filename):
+    with open(filename, "r") as f:
+        lines = f.readlines()
+
+        split_lines = []
+        for line in lines:
+            split_line = line.split("\t", len(SAM_FIELDS)-1)
+            split_line[-1] = split_line[-1].strip("\n")
+            split_lines.append(split_line)
+
+        df = pd.DataFrame.from_records(split_lines, columns=SAM_FIELDS)
+
+        df = df.astype({"FLAG": "int64", "POS": "int64", "MAPQ": "int64",
+                        "PNEXT": "int64", "TLEN": "int64"})
+
+    return df
+
 
 def put_df_to_object_store(client, df, object_id):
     """
@@ -45,34 +69,16 @@ def generate_object_id(offset):
 
 
 if __name__ == "__main__":
-    with open("nodeslist.txt", "r") as f:
-        nodes = f.readline().split(",")
-        num_of_nodes = len(nodes)
-
     dispatch_plan = collections.defaultdict(dict)
+    with open("chromo_destination.txt", "r") as f:
+        chromo_destinations = f.readlines()
+        for entry in chromo_destinations:
+            chromo, dest = entry.split(":")
+            dispatch_plan[chromo]["destination"] = dest.strip("\n")
 
-    # The logic of assigning destinations for the chromosomes goes here.
-    chromo_groups = WORKLOAD_DISTRIBUTION[num_of_nodes]
-    for i, group in enumerate(chromo_groups):
-        for chromo in group:
-            dispatch_plan[chromo]["destination"] = nodes[i]
+    sam_df = read_sam_from_file("2k_reads.sam")
 
-    with open("2k_reads.sam", "r") as f:
-        lines = f.readlines()
-
-        split_lines = []
-        for line in lines:
-            split_line = line.split("\t", len(SAM_FIELDS)-1)
-            split_line[-1] = split_line[-1].strip("\n")
-            split_lines.append(split_line)
-
-        df = pd.DataFrame.from_records(split_lines, columns=SAM_FIELDS)
-
-        df = df.astype({"FLAG": "int64", "POS": "int64", "MAPQ": "int64",
-                        "PNEXT": "int64", "TLEN": "int64"})
-
-    gb = df.groupby("RNAME")
-
+    gb = sam_df.groupby("RNAME")
     client = plasma.connect("/tmp/plasma")
 
     for i, chromo in enumerate(gb.groups):
