@@ -1,5 +1,30 @@
 #include "in_memory_storage.h"
-#include "plasma/test_util.h"
+
+#include <functional>  // for std::function
+#include <random>
+
+/* Code for random ID generation is revised from:
+ * https://stackoverflow.com/a/12468109/5723556
+ */
+typedef std::vector<char> char_array;
+char_array charset() {
+    return char_array({'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',
+                       'B', 'C', 'D', 'E', 'F'});
+};
+
+std::string gen_random_str(size_t length, std::function<char(void)> rand_char) {
+    std::string str(length, 0);
+    std::generate_n(str.begin(), length, rand_char);
+    return str;
+}
+
+std::string gen_random_id() {
+    const auto ch_set = charset();
+    std::default_random_engine rng(std::random_device{}());
+    std::uniform_int_distribution<> dist(0, ch_set.size() - 1);
+    auto randchar = [ch_set, &dist, &rng]() { return ch_set[dist(rng)]; };
+    return gen_random_str(20, randchar);
+}
 
 plasma::ObjectID PutRecordBatchToPlasma(
     const std::shared_ptr<arrow::RecordBatch>& record_batch) {
@@ -25,8 +50,8 @@ plasma::ObjectID PutRecordBatchToPlasma(
   ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
 
   // Create an object with a random Object ID
-  // TODO: don't use random ID; there seems to be problem with the random ID generator
-  plasma::ObjectID object_id = plasma::random_object_id();
+  std::string random_id = gen_random_id();
+  plasma::ObjectID object_id =plasma::ObjectID::from_binary(random_id);
   std::shared_ptr<Buffer> buf;
   ARROW_CHECK_OK(client.Create(object_id, data_size, nullptr, 0, &buf));
 

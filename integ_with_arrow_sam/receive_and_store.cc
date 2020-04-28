@@ -1,129 +1,152 @@
-#include <boost/asio/ip/host_name.hpp>
-#include <cstdlib>
-
-#include <gflags/gflags.h>
-
 #include "common.h"
-#include "in_memory_storage.h"
 
-// TODO: change this to inferring from nodeslist
-DEFINE_int32(num_nodes, 4, "Number of nodes used for the distributed sorting task");
-DEFINE_int32(server_port, 32108, "Server port to listen on");
+DEFINE_int32(receiver_port, 32108, "Port the receiver listens on");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
-class MyFlightServer : public arrow::flight::FlightServerBase {
-  arrow::Status DoPut(
-      const arrow::flight::ServerCallContext& context,
-      std::unique_ptr<arrow::flight::FlightMessageReader> reader,
-      std::unique_ptr<arrow::flight::FlightMetadataWriter> writer) override {
-    auto host_name = boost::asio::ip::host_name();
-    std::ofstream log_file;
-    log_file.open(host_name + "_flight_receiver.log", std::ios_base::app);
+typedef std::map<std::string, std::vector<std::string>> DestChromo;
 
-    std::vector<std::shared_ptr<arrow::RecordBatch>> received_record_batches;
-
-    arrow::flight::FlightStreamChunk chunk;
-    // Put the received chunks together
-    while (true) {  // Assume that there might be multiple chunks in one DoPut
-      // Question: what is the capacity of a chunk?
-      RETURN_NOT_OK(reader->Next(&chunk));
-      if (!chunk.data) break;
-      received_record_batches.push_back(chunk.data);
-      if (chunk.app_metadata) {
-        std::cout << "chunk.app_metadata" << chunk.app_metadata->ToString() << std::endl;
-        RETURN_NOT_OK(writer->WriteMetadata(*chunk.app_metadata));
-      }
+class FlightReceiver : public arrow::flight::FlightServerBase {
+   public:
+    void CreateLogFile() {
+        log_file_.open(boost::asio::ip::host_name() + "_flight_receiver.log",
+                       std::ios_base::app);
     }
 
-    log_file << PrettyPrintCurrentTime() << "received data, started putting to Plasma"
-             << std::endl;
+    void ReadChromoDest() {
+        DestChromo dest_chromo;
+        std::ifstream in_file("chromo_destination.txt");
 
-    for (auto record_batch : received_record_batches) {
-      auto object_id = PutRecordBatchToPlasma(record_batch);
-      object_ids_.push_back(object_id);
-    }
-    log_file << PrettyPrintCurrentTime() << "putting received data to Plasma finished"
-             << std::endl;
+        std::string chromo_dest_entry;
+        std::vector<std::string> chromo_dest_vec;
+        std::string delimiters(":");
 
-    // TODO: separate processing received data from DoPut
-    // (https://github.com/MaChengxin/playground/issues/2, not a blocking issue)
-    
-    // DON'T ASSUME THERE IS ONLY ONE PLASMA OBJECT FROM ONE OTHER NODE!
-    
-    do_put_counter_ += 1;
+        while (in_file >> chromo_dest_entry) {
+            boost::split(chromo_dest_vec, chromo_dest_entry,
+                         boost::is_any_of(delimiters));
+            dest_chromo[chromo_dest_vec.at(1)].push_back(chromo_dest_vec.at(0));
+        }
 
-    if (do_put_counter_ == FLAGS_num_nodes) {
-      ProcessReceivedData();
-    }
+        num_of_nodes_ = dest_chromo.size();
+        num_plasma_obj_to_receive_ =
+            num_of_nodes_ * dest_chromo[boost::asio::ip::host_name()].size();
 
-    return arrow::Status::OK();
-  }
-
- private:
-  int do_put_counter_ = 0;
-  std::vector<plasma::ObjectID> object_ids_;
-
-  void ProcessReceivedData() {
-    std::string object_id_strs;
-
-    for (auto object_id : object_ids_) {
-      object_id_strs = object_id_strs + object_id.hex() + " ";
+        log_file_ << PrettyPrintCurrentTime()
+                  << "Number of nodes: " << num_of_nodes_ << std::endl;
+        log_file_ << PrettyPrintCurrentTime()
+                  << "Number of Plasma Objects to receive: "
+                  << num_plasma_obj_to_receive_ << std::endl;
     }
 
-    // std::string python_cmd = "python3 retrieve_and_sort.py " + object_id_strs;
-    // std::system(python_cmd.c_str());
+   private:
+    arrow::Status DoPut(
+        const arrow::flight::ServerCallContext& context,
+        std::unique_ptr<arrow::flight::FlightMessageReader> reader,
+        std::unique_ptr<arrow::flight::FlightMetadataWriter> writer) override {
+        std::vector<std::shared_ptr<arrow::RecordBatch>>
+            received_record_batches;
 
-    if (FLAGS_debug_mode) {
-      PrintRecordBatchesInPlasma(object_ids_);
+        RETURN_NOT_OK(reader->ReadAll(&received_record_batches));
+
+        /* In our case we only write one Record Batch per stream. Assume that
+         * Flight doesn't break a Record Batch from the sender's side into
+         * multiple smaller ones onthe receiver's side.
+         * Reference: https://stackoverflow.com/a/3692961/5723556
+         */
+        assert(received_record_batches.size() == 1 &&
+               "There is supposed to be only one Record Batch per stream.");
+
+        for (auto record_batch : received_record_batches) {
+            auto object_id = PutRecordBatchToPlasma(record_batch);
+            object_ids_.push_back(object_id);
+            std::cout << "An object has been put to Plasma with ID: "
+                      << object_id.binary() << std::endl;
+        }
+
+        // There are 25 objects put by BWA into Plasma
+        if (GetNumObjInPlasma() == num_plasma_obj_to_receive_ + 25) {
+            ProcessReceivedData();
+        }
+        return arrow::Status::OK();
     }
-  }
 
-  void PrintRecordBatchesInPlasma(std::vector<plasma::ObjectID> object_ids) {
-    // Start up and connect a Plasma client
-    plasma::PlasmaClient client;
-    ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
-
-    for (auto object_id : object_ids) {
-      std::cout << "Object ID: " << object_id.hex() << std::endl;
-      std::shared_ptr<arrow::RecordBatch> record_batch;
-      record_batch = GetRecordBatchFromPlasma(object_id, client);
-
-      std::cout << "record_batch->schema()->ToString(): "
-                << record_batch->schema()->ToString() << std::endl;
-      std::cout << "record_batch->num_columns(): "
-                << record_batch->num_columns() << std::endl;
-      std::cout << "record_batch->num_rows(): "
-                << record_batch->num_rows() << std::endl;
-      std::cout << "record_batch->column(0)->ToString(): "
-                << record_batch->column(0)->ToString() << std::endl;
-      std::cout << "record_batch->column(2)->ToString(): "
-                << record_batch->column(2)->ToString() << std::endl;
-      std::cout << "record_batch->column(3)->ToString(): "
-                << record_batch->column(3)->ToString() << std::endl;
+    std::size_t GetNumObjInPlasma() {
+        plasma::PlasmaClient plasma_client;
+        ARROW_CHECK_OK(plasma_client.Connect("/tmp/plasma"));
+        plasma::ObjectTable objects;
+        arrow::Status status = plasma_client.List(&objects);
+        std::cout << "Number of objects in the Plamsa Store: " << objects.size()
+                  << std::endl;
+        return objects.size();
     }
 
-    // Disconnect the client
-    ARROW_CHECK_OK(client.Disconnect());
-  }
+    void ProcessReceivedData() {
+        std::ofstream received_objects;
+        received_objects.open(
+            boost::asio::ip::host_name() + "_id_of_received_objects.log",
+            std::ios_base::app);
+        for (auto object_id : object_ids_) {
+            received_objects << object_id.binary() << std::endl;
+        }
+
+        // TODO: start the program for retrieving and sorting here
+
+        if (FLAGS_debug_mode) {
+            PrintRecordBatchesInPlasma(object_ids_);
+        }
+    }
+
+    void PrintRecordBatchesInPlasma(std::vector<plasma::ObjectID> object_ids) {
+        // Start up and connect a Plasma client
+        plasma::PlasmaClient client;
+        ARROW_CHECK_OK(client.Connect("/tmp/plasma"));
+
+        for (auto object_id : object_ids) {
+            std::cout << "Object ID: " << object_id.hex() << std::endl;
+            std::shared_ptr<arrow::RecordBatch> record_batch;
+            record_batch = GetRecordBatchFromPlasma(object_id, client);
+
+            std::cout << "record_batch->schema()->ToString(): "
+                      << record_batch->schema()->ToString() << std::endl;
+            std::cout << "record_batch->num_columns(): "
+                      << record_batch->num_columns() << std::endl;
+            std::cout << "record_batch->num_rows(): "
+                      << record_batch->num_rows() << std::endl;
+            std::cout << "record_batch->column(0)->ToString(): "
+                      << record_batch->column(0)->ToString() << std::endl;
+            std::cout << "record_batch->column(2)->ToString(): "
+                      << record_batch->column(2)->ToString() << std::endl;
+            std::cout << "record_batch->column(3)->ToString(): "
+                      << record_batch->column(3)->ToString() << std::endl;
+        }
+
+        // Disconnect the client
+        ARROW_CHECK_OK(client.Disconnect());
+    }
+
+    std::vector<plasma::ObjectID> object_ids_;
+    std::ofstream log_file_;
+    int num_of_nodes_;
+    int num_plasma_obj_to_receive_;
 };
 
 int main(int argc, char** argv) {
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  std::unique_ptr<MyFlightServer> my_flight_server;
-  my_flight_server.reset(new MyFlightServer);
+    std::unique_ptr<FlightReceiver> flight_receiver;
+    flight_receiver.reset(new FlightReceiver);
 
-  // According to Flight.proto: a location is where a Flight service will accept
-  // retrieval of a particular stream given a ticket.
-  arrow::flight::Location location;
-  ARROW_CHECK_OK(
-      arrow::flight::Location::ForGrpcTcp("0.0.0.0", FLAGS_server_port, &location));
-  arrow::flight::FlightServerOptions options(location);
+    arrow::flight::Location location;
+    ARROW_CHECK_OK(arrow::flight::Location::ForGrpcTcp(
+        "0.0.0.0", FLAGS_receiver_port, &location));
+    arrow::flight::FlightServerOptions options(location);
 
-  ARROW_CHECK_OK(my_flight_server->Init(options));
-  // Exit with a clean error code (0) on SIGTERM
-  ARROW_CHECK_OK(my_flight_server->SetShutdownOnSignals({SIGTERM}));
-  std::cout << "Server port: " << FLAGS_server_port << std::endl;
-  ARROW_CHECK_OK(my_flight_server->Serve());
-  return 0;
+    ARROW_CHECK_OK(flight_receiver->Init(options));
+    // Exit with a clean error code (0) on SIGTERM
+    ARROW_CHECK_OK(flight_receiver->SetShutdownOnSignals({SIGTERM}));
+    flight_receiver->CreateLogFile();
+    flight_receiver->ReadChromoDest();
+    std::cout << "Flight Receiver running on " << boost::asio::ip::host_name()
+              << std::endl;
+    ARROW_CHECK_OK(flight_receiver->Serve());
+    return 0;
 }

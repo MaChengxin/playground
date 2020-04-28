@@ -1,12 +1,6 @@
 #include <arrow/util/thread_pool.h>
-#include <gflags/gflags.h>
-
-#include <boost/algorithm/string.hpp>
-#include <boost/asio/ip/host_name.hpp>
-#include <map>
 
 #include "common.h"
-#include "in_memory_storage.h"
 
 DEFINE_int32(destination_port, 32108, "Port on the destinations to connect to");
 DEFINE_int32(thread_pool_size, 4, "Size of the thread pool for Flight tasks");
