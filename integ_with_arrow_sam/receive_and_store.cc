@@ -8,7 +8,7 @@
 
 // TODO: change this to inferring from nodeslist
 DEFINE_int32(num_nodes, 4, "Number of nodes used for the distributed sorting task");
-DEFINE_int32(server_port, 30103, "Server port to listen on");
+DEFINE_int32(server_port, 32108, "Server port to listen on");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
 class MyFlightServer : public arrow::flight::FlightServerBase {
@@ -18,7 +18,7 @@ class MyFlightServer : public arrow::flight::FlightServerBase {
       std::unique_ptr<arrow::flight::FlightMetadataWriter> writer) override {
     auto host_name = boost::asio::ip::host_name();
     std::ofstream log_file;
-    log_file.open(host_name + "_r.log", std::ios_base::app);
+    log_file.open(host_name + "_flight_receiver.log", std::ios_base::app);
 
     std::vector<std::shared_ptr<arrow::RecordBatch>> received_record_batches;
 
