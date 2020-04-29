@@ -84,12 +84,17 @@ arrow::Status SendToDest(int argc, char **argv) {
         log_file << PrettyPrintCurrentTime() << "Scheduling sending "
                  << iter->first << " to " << iter->second.first
                  << ", Object ID: " << iter->second.second << std::endl;
-        ARROW_ASSIGN_OR_RAISE(auto task, 
-                              pool->Submit(SendToDestinationNode, 
-                                           iter->second.first,
-                                           FLAGS_destination_port, 
-                                           plasma::ObjectID::from_binary(iter->second.second)));
-        tasks.push_back(std::move(task));
+
+        // There is no need to send objects to self
+        if (iter->second.first != boost::asio::ip::host_name()) {
+            ARROW_ASSIGN_OR_RAISE(
+                auto task,
+                pool->Submit(SendToDestinationNode, 
+                             iter->second.first,
+                             FLAGS_destination_port,
+                             plasma::ObjectID::from_binary(iter->second.second)));
+            tasks.push_back(std::move(task));
+        }
     }
 
     // Wait for tasks to finish

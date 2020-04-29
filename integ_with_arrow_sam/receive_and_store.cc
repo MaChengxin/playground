@@ -28,7 +28,8 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
 
         num_of_nodes_ = dest_chromo.size();
         num_plasma_obj_to_receive_ =
-            num_of_nodes_ * dest_chromo[boost::asio::ip::host_name()].size();
+            (num_of_nodes_ - 1) *
+            dest_chromo[boost::asio::ip::host_name()].size();
 
         log_file_ << PrettyPrintCurrentTime()
                   << "Number of nodes: " << num_of_nodes_ << std::endl;
@@ -49,7 +50,7 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
 
         /* In our case we only write one Record Batch per stream. Assume that
          * Flight doesn't break a Record Batch from the sender's side into
-         * multiple smaller ones onthe receiver's side.
+         * multiple smaller ones on the receiver's side.
          * Reference: https://stackoverflow.com/a/3692961/5723556
          */
         assert(received_record_batches.size() == 1 &&
@@ -64,6 +65,7 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
 
         // There are 25 objects put by BWA into Plasma
         if (GetNumObjInPlasma() == num_plasma_obj_to_receive_ + 25) {
+            // This may be called more than once because GetNumObjInPlasma() is not atomic
             ProcessReceivedData();
         }
         return arrow::Status::OK();
