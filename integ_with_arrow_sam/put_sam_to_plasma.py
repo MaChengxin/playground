@@ -76,6 +76,7 @@ if __name__ == "__main__":
             chromo, dest = entry.split(":")
             dispatch_plan[chromo]["destination"] = dest.strip("\n")
 
+    # TODO: read from a file passed by args
     sam_df = read_sam_from_file("2k_reads.sam")
 
     gb = sam_df.groupby("RNAME")
@@ -89,7 +90,7 @@ if __name__ == "__main__":
                                    obj_id)
             dispatch_plan[chromo]["object_id"] = obj_id.binary().decode()
 
-    with open(socket.gethostname()+"_dispatch_plan.txt", "w") as f:
+    with open(socket.gethostname().strip(".bullx")+"_dispatch_plan.txt", "w") as f:
         for chromo in dispatch_plan:
             f.write(chromo + ":" +
                     dispatch_plan[chromo]["destination"] + "," +

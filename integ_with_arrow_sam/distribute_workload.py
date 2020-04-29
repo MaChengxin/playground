@@ -16,7 +16,7 @@ WORKLOAD_DISTRIBUTION_LOOKUP = {1: (("chr1", "chr2", "chr3", "chr4", "chr5", "ch
 
 if __name__ == "__main__":
     with open("nodeslist.txt", "r") as f:
-        nodes = f.readline().split(",")
+        nodes = f.readline().strip("\n").split(",")
         num_of_nodes = len(nodes)
 
     chromo_destination = {}

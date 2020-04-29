@@ -8,7 +8,10 @@ typedef std::map<std::string, std::vector<std::string>> DestChromo;
 class FlightReceiver : public arrow::flight::FlightServerBase {
    public:
     void CreateLogFile() {
-        log_file_.open(boost::asio::ip::host_name() + "_flight_receiver.log",
+        host_name = boost::asio::ip::host_name();
+        std::regex pattern(".bullx"); // extension of hostname on Cartesius
+        host_name = std::regex_replace(host_name, pattern, "");
+        log_file_.open(host_name + "_flight_receiver.log",
                        std::ios_base::app);
     }
 
@@ -29,7 +32,7 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
         num_of_nodes_ = dest_chromo.size();
         num_plasma_obj_to_receive_ =
             (num_of_nodes_ - 1) *
-            dest_chromo[boost::asio::ip::host_name()].size();
+            dest_chromo[host_name].size();
 
         log_file_ << PrettyPrintCurrentTime()
                   << "Number of nodes: " << num_of_nodes_ << std::endl;
@@ -37,6 +40,8 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
                   << "Number of Plasma Objects to receive: "
                   << num_plasma_obj_to_receive_ << std::endl;
     }
+
+    std::string host_name;
 
    private:
     arrow::Status DoPut(
@@ -83,8 +88,7 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
 
     void ProcessReceivedData() {
         std::ofstream received_objects;
-        received_objects.open(
-            boost::asio::ip::host_name() + "_id_of_received_objects.log",
+        received_objects.open(host_name + "_id_of_received_objects.log",
             std::ios_base::app);
         for (auto object_id : object_ids_) {
             received_objects << object_id.binary() << std::endl;
@@ -147,7 +151,7 @@ int main(int argc, char** argv) {
     ARROW_CHECK_OK(flight_receiver->SetShutdownOnSignals({SIGTERM}));
     flight_receiver->CreateLogFile();
     flight_receiver->ReadChromoDest();
-    std::cout << "Flight Receiver running on " << boost::asio::ip::host_name()
+    std::cout << "Flight Receiver running on " << flight_receiver->host_name
               << std::endl;
     ARROW_CHECK_OK(flight_receiver->Serve());
     return 0;

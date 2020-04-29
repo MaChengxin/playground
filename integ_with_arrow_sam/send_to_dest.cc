@@ -51,6 +51,9 @@ arrow::Status SendToDest(int argc, char **argv) {
 
     // Create a log file
     auto host_name = boost::asio::ip::host_name();
+    // Reference code: https://stackoverflow.com/a/32435076/5723556
+    std::regex pattern(".bullx"); // extension of hostname on Cartesius
+    host_name = std::regex_replace(host_name, pattern, "");
     std::ofstream log_file;
     log_file.open(host_name + "_flight_sender.log", std::ios_base::app);
     log_file << PrettyPrintCurrentTime() << "send-to-dest started" << std::endl;
@@ -81,12 +84,11 @@ arrow::Status SendToDest(int argc, char **argv) {
     std::vector<std::future<Status>> tasks;
 
     for (DispatchPlanIter iter = dispatch_plan.begin(); iter != dispatch_plan.end(); ++iter) {
+        // There is no need to send objects to self
+        if (iter->second.first != host_name) {
         log_file << PrettyPrintCurrentTime() << "Scheduling sending "
                  << iter->first << " to " << iter->second.first
-                 << ", Object ID: " << iter->second.second << std::endl;
-
-        // There is no need to send objects to self
-        if (iter->second.first != boost::asio::ip::host_name()) {
+                 << ", local Object ID: " << iter->second.second << std::endl;
             ARROW_ASSIGN_OR_RAISE(
                 auto task,
                 pool->Submit(SendToDestinationNode, 

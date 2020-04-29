@@ -24,6 +24,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
