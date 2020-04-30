@@ -4,15 +4,16 @@ DEFINE_int32(receiver_port, 32108, "Port the receiver listens on");
 DEFINE_bool(debug_mode, false, "If on, more info will be put to stdout");
 
 typedef std::map<std::string, std::vector<std::string>> DestChromo;
+// There are 25 objects (1-22, X,Y,M) put by BWA into Plasma
+const size_t num_local_plasma_objs = 25;
 
 class FlightReceiver : public arrow::flight::FlightServerBase {
    public:
     void CreateLogFile() {
         host_name = boost::asio::ip::host_name();
-        std::regex pattern(".bullx"); // extension of hostname on Cartesius
+        std::regex pattern(".bullx");  // extension of hostname on Cartesius
         host_name = std::regex_replace(host_name, pattern, "");
-        log_file_.open(host_name + "_flight_receiver.log",
-                       std::ios_base::app);
+        log_file_.open(host_name + "_flight_receiver.log", std::ios_base::app);
     }
 
     void ReadChromoDest() {
@@ -30,9 +31,9 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
         }
 
         num_of_nodes_ = dest_chromo.size();
+        // There is no need to send objects to self
         num_plasma_obj_to_receive_ =
-            (num_of_nodes_ - 1) *
-            dest_chromo[host_name].size();
+            (num_of_nodes_ - 1) * dest_chromo[host_name].size();
 
         log_file_ << PrettyPrintCurrentTime()
                   << "Number of nodes: " << num_of_nodes_ << std::endl;
@@ -64,13 +65,18 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
         for (auto record_batch : received_record_batches) {
             auto object_id = PutRecordBatchToPlasma(record_batch);
             object_ids_.push_back(object_id);
-            std::cout << "An object has been put to Plasma with ID: "
+            log_file_ << PrettyPrintCurrentTime() << "An object has been put to Plasma with ID: "
                       << object_id.binary() << std::endl;
         }
 
-        // There are 25 objects put by BWA into Plasma
-        if (GetNumObjInPlasma() == num_plasma_obj_to_receive_ + 25) {
-            // This may be called more than once because GetNumObjInPlasma() is not atomic
+        // BUG: checking number of objects in Plasma should NOT put here!
+        // A node may still be putting Plasma objects to itself while others nodes
+        // have finished sending data to it.
+        // This means, num_local_plasma_objs may NOT be 25 when the last DoPut function call happens!!
+        if (GetNumObjInPlasma() ==
+            num_plasma_obj_to_receive_ + num_local_plasma_objs) {
+            // This may be called more than once because GetNumObjInPlasma() is
+            // not atomic
             ProcessReceivedData();
         }
         return arrow::Status::OK();
@@ -81,7 +87,7 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
         ARROW_CHECK_OK(plasma_client.Connect("/tmp/plasma"));
         plasma::ObjectTable objects;
         arrow::Status status = plasma_client.List(&objects);
-        std::cout << "Number of objects in the Plamsa Store: " << objects.size()
+        log_file_ << PrettyPrintCurrentTime() << "Number of objects in the Plamsa Store: " << objects.size()
                   << std::endl;
         return objects.size();
     }
@@ -89,7 +95,7 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
     void ProcessReceivedData() {
         std::ofstream received_objects;
         received_objects.open(host_name + "_id_of_received_objects.log",
-            std::ios_base::app);
+                              std::ios_base::app);
         for (auto object_id : object_ids_) {
             received_objects << object_id.binary() << std::endl;
         }

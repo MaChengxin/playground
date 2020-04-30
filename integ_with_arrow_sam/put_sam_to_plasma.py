@@ -3,12 +3,18 @@ Useful links:
     https://github.com/apache/arrow/blob/master/python/examples/plasma/sorting/sort_df.py
 """
 
+import argparse
 import collections
+from datetime import datetime
 import socket
+import subprocess
 
 import pandas as pd
 import pyarrow as pa
 from pyarrow import plasma
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input_file", help="The input SAM file.")
 
 SAM_FIELDS = ("QNAME", "FLAG", "RNAME", "POS", "MAPQ", "CIGAR",
               "RNEXT", "PNEXT", "TLEN", "SEQ", "QUAL", "OPTIONAL")
@@ -69,6 +75,9 @@ def generate_object_id(offset):
 
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+    log_file = socket.gethostname().strip(".bullx") + "_flight_sender.log"
+
     dispatch_plan = collections.defaultdict(dict)
     with open("chromo_destination.txt", "r") as f:
         chromo_destinations = f.readlines()
@@ -76,8 +85,15 @@ if __name__ == "__main__":
             chromo, dest = entry.split(":")
             dispatch_plan[chromo]["destination"] = dest.strip("\n")
 
-    # TODO: read from a file passed by args
-    sam_df = read_sam_from_file("2k_reads.sam")
+    with open(log_file, "a") as f:
+        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
+        f.write("Started reading SAM data from file\n")
+
+    sam_df = read_sam_from_file(args.input_file)
+
+    with open(log_file, "a") as f:
+        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
+        f.write("Finished reading SAM data from file, started putting data to Plasma\n")
 
     gb = sam_df.groupby("RNAME")
     client = plasma.connect("/tmp/plasma")
@@ -90,8 +106,18 @@ if __name__ == "__main__":
                                    obj_id)
             dispatch_plan[chromo]["object_id"] = obj_id.binary().decode()
 
+    with open(log_file, "a") as f:
+        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
+        f.write("Finished putting data to Plasma\n")
+
     with open(socket.gethostname().strip(".bullx")+"_dispatch_plan.txt", "w") as f:
         for chromo in dispatch_plan:
             f.write(chromo + ":" +
                     dispatch_plan[chromo]["destination"] + "," +
                     dispatch_plan[chromo]["object_id"] + "\n")
+
+    with open(log_file, "a") as f:
+        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
+        f.write("Start the cpp app send-to-dest\n")
+    
+    subprocess.call("./send-to-dest")
