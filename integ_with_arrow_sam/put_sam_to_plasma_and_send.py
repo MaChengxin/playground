@@ -82,8 +82,8 @@ if __name__ == "__main__":
     with open("chromo_destination.txt", "r") as f:
         chromo_destinations = f.readlines()
         for entry in chromo_destinations:
-            chromo, dest = entry.split(":")
-            dispatch_plan[chromo]["destination"] = dest.strip("\n")
+            chromo, dest = entry.strip("\n").split(":")
+            dispatch_plan[chromo]["destination"] = dest
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
