@@ -1,6 +1,7 @@
 import collections
 import re
 import socket
+import subprocess
 import time
 from pyarrow import plasma
 
@@ -55,8 +56,11 @@ if __name__ == "__main__":
             ids_sent_away_objects.append(dispatch_plan[chromo]["object_id"])
 
     ids_obj_to_be_retrieved = set(ids_all_objects) - set(ids_sent_away_objects)
-    print("Number of objects to be retrieved for the next phase: ", len(ids_obj_to_be_retrieved))
+    print("Number of objects to be retrieved for the next phase: ",
+          len(ids_obj_to_be_retrieved))
 
-    with open(socket.gethostname().strip(".bullx")+"_objs_to_be_retrieved.txt", "w") as f:
+    with open(host_name+"_objs_to_be_retrieved.txt", "w") as f:
         for obj_id in ids_obj_to_be_retrieved:
             f.write(obj_id + "\n")
+
+    subprocess.call(["python3", "retrieve_and_sort.py"])

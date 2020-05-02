@@ -42,7 +42,7 @@ def read_sam_from_file(filename):
     return df
 
 
-def put_df_to_object_store(client, df, object_id):
+def put_df_to_plasma(client, df, object_id):
     """
     Precondition: the Plasma Object Store has been opened.
     e.g. by: plasma_store -m 1000000000 -s /tmp/plasma
@@ -76,7 +76,8 @@ def generate_object_id(offset):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    log_file = socket.gethostname().strip(".bullx") + "_flight_sender.log"
+    host_name = socket.gethostname().strip(".bullx")
+    log_file = host_name + "_flight_sender.log"
 
     dispatch_plan = collections.defaultdict(dict)
     with open("chromo_destination.txt", "r") as f:
@@ -101,16 +102,16 @@ if __name__ == "__main__":
     for i, chromo in enumerate(gb.groups):
         if chromo in VALID_CHROMO_NAMES:
             obj_id = generate_object_id(i)
-            put_df_to_object_store(client,
-                                   gb.get_group(chromo),
-                                   obj_id)
+            put_df_to_plasma(client,
+                             gb.get_group(chromo),
+                             obj_id)
             dispatch_plan[chromo]["object_id"] = obj_id.binary().decode()
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write("Finished putting data to Plasma\n")
 
-    with open(socket.gethostname().strip(".bullx")+"_dispatch_plan.txt", "w") as f:
+    with open(host_name+"_dispatch_plan.txt", "w") as f:
         for chromo in dispatch_plan:
             f.write(chromo + ":" +
                     dispatch_plan[chromo]["destination"] + "," +
@@ -119,5 +120,5 @@ if __name__ == "__main__":
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write("Start the cpp app send-to-dest\n")
-    
+
     subprocess.call("./send-to-dest")
