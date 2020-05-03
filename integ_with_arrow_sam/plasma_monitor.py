@@ -1,4 +1,5 @@
 import collections
+from datetime import datetime
 import re
 import socket
 import subprocess
@@ -29,6 +30,7 @@ def read_chromo_dest_file(file_name):
 
 if __name__ == "__main__":
     host_name = socket.gethostname().strip(".bullx")
+    log_file = host_name + "_plasma_monitor.log"
 
     dest_chromo = read_chromo_dest_file("chromo_destination.txt")
     num_of_nodes = len(dest_chromo)
@@ -42,8 +44,11 @@ if __name__ == "__main__":
         all_objects_in_plasma = client.list()
         time.sleep(1)
 
-    print("Got all objects needed for the next phase.")
-    print("Number of objects in Plasma: ", len(all_objects_in_plasma))
+    with open(log_file, "a") as f:
+        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
+        f.write("Got all objects needed for the next phase. ")
+        f.write("Number of objects in Plasma: " +
+                str(len(all_objects_in_plasma)) + "\n")
 
     ids_all_objects = []
     for obj_id in all_objects_in_plasma:
@@ -56,8 +61,10 @@ if __name__ == "__main__":
             ids_sent_away_objects.append(dispatch_plan[chromo]["object_id"])
 
     ids_obj_to_be_retrieved = set(ids_all_objects) - set(ids_sent_away_objects)
-    print("Number of objects to be retrieved for the next phase: ",
-          len(ids_obj_to_be_retrieved))
+    with open(log_file, "a") as f:
+        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
+        f.write("Number of objects to be retrieved for the next phase: " +
+                str(len(ids_obj_to_be_retrieved)) + "\n")
 
     with open(host_name+"_objs_to_be_retrieved.txt", "w") as f:
         for obj_id in ids_obj_to_be_retrieved:

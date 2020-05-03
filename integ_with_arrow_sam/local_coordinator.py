@@ -81,7 +81,7 @@ def convert_chromo_name(chromo):
 if __name__ == "__main__":
     args = parser.parse_args()
     host_name = socket.gethostname().strip(".bullx")
-    log_file = host_name + "_flight_sender.log"
+    log_file = host_name + "_local_coordinator.log"
 
     dispatch_plan = collections.defaultdict(dict)
     with open("chromo_destination.txt", "r") as f:
