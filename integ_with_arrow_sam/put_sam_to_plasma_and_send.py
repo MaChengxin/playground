@@ -1,8 +1,3 @@
-""" Script to simulate BWA in ArrowSAM.
-Useful links:
-    https://github.com/apache/arrow/blob/master/python/examples/plasma/sorting/sort_df.py
-"""
-
 import argparse
 import collections
 from datetime import datetime
@@ -35,9 +30,6 @@ def read_sam_from_file(filename):
             split_lines.append(split_line)
 
         df = pd.DataFrame.from_records(split_lines, columns=SAM_FIELDS)
-
-        df = df.astype({"FLAG": "int64", "POS": "int64", "MAPQ": "int64",
-                        "PNEXT": "int64", "TLEN": "int64"})
 
     return df
 
@@ -74,6 +66,18 @@ def generate_object_id(offset):
     return object_id
 
 
+def convert_chromo_name(chromo):
+    chromo = chromo.strip("chr")
+    if chromo == "X":
+        return 23
+    elif chromo == "Y":
+        return 24
+    elif chromo == "M":
+        return 25
+    else:
+        return int(chromo)
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
     host_name = socket.gethostname().strip(".bullx")
@@ -100,10 +104,17 @@ if __name__ == "__main__":
     client = plasma.connect("/tmp/plasma")
 
     for i, chromo in enumerate(gb.groups):
+        # Filter out invalid chromosomes
         if chromo in VALID_CHROMO_NAMES:
+            # copy() is to suppress SettingWithCopyWarning
+            per_chromo_sam = gb.get_group(chromo).copy()
+            # For valid chromosomes, changes its RNAME (to make subsequent sorting faster)
+            per_chromo_sam["RNAME"] = per_chromo_sam["RNAME"].map(convert_chromo_name)
+            per_chromo_sam = per_chromo_sam.astype({"FLAG": "int64", "RNAME": "int64", "POS": "int64",
+                                                    "MAPQ": "int64", "PNEXT": "int64", "TLEN": "int64"})
             obj_id = generate_object_id(i)
             put_df_to_plasma(client,
-                             gb.get_group(chromo),
+                             per_chromo_sam,
                              obj_id)
             dispatch_plan[chromo]["object_id"] = obj_id.binary().decode()
 

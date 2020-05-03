@@ -52,8 +52,7 @@ if __name__ == "__main__":
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write("finished concatenating, started sorting the records\n")
 
-    # This doesn't give expected result!
-    all_sam_records.sort_values(by=["RNAME"], inplace=True)
+    all_sam_records.sort_values(by=["RNAME", "POS"], inplace=True)
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
