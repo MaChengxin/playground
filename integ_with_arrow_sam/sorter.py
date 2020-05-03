@@ -6,6 +6,17 @@ import pyarrow as pa
 from pyarrow import plasma
 
 
+def revert_chromo_name(chromo_idx):
+    if 0 < chromo_idx < 23:
+        return "chr"+str(chromo_idx)
+    elif chromo_idx == 23:
+        return "chrX"
+    elif chromo_idx == 24:
+        return "chrY"
+    elif chromo_idx == 25:
+        return "chrM"
+
+
 def get_record_batch_from_plasma(object_id, client):
     """ https://arrow.apache.org/docs/python/plasma.html#getting-pandas-dataframes-from-plasma
     """
@@ -59,6 +70,7 @@ if __name__ == "__main__":
         f.write("finished sorting the records, started writing to csv\n")
 
     all_sam_records.reset_index(drop=True, inplace=True)
+    all_sam_records["RNAME"] = all_sam_records["RNAME"].map(revert_chromo_name)
     all_sam_records.to_csv(host_name+"_sorted.sam",
                            sep="\t", header=False, index=False)
 
