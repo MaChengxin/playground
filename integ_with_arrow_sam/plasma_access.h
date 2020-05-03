@@ -1,5 +1,5 @@
-#ifndef IN_MEMORY_STORAGE_H
-#define IN_MEMORY_STORAGE_H
+#ifndef PLASMA_ACCESS_H
+#define PLASMA_ACCESS_H
 
 #include "common.h"
 
@@ -9,4 +9,4 @@ plasma::ObjectID PutRecordBatchToPlasma(
 std::shared_ptr<arrow::RecordBatch> GetRecordBatchFromPlasma(
     plasma::ObjectID object_id, plasma::PlasmaClient& client);
 
-#endif  // IN_MEMORY_STORAGE_H
+#endif  // PLASMA_ACCESS_H

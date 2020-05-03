@@ -1,24 +1,24 @@
-all: send-to-dest receive-and-store
+all: flight-sender flight-receiver
 	rm -f *o
 
-send-to-dest: send_to_dest.o common.o in_memory_storage.o
-	g++ -g -o send-to-dest send_to_dest.o common.o in_memory_storage.o `pkg-config --cflags --libs arrow arrow-flight gflags plasma` -lboost_system
+flight-sender: flight_sender.o common.o plasma_access.o
+	g++ -g -o flight-sender flight_sender.o common.o plasma_access.o `pkg-config --cflags --libs arrow arrow-flight gflags plasma` -lboost_system
 
-receive-and-store: receive_and_store.o common.o in_memory_storage.o
-	g++ -g -o receive-and-store receive_and_store.o common.o in_memory_storage.o `pkg-config --cflags --libs arrow arrow-flight gflags plasma` -lboost_system
+flight-receiver: flight_receiver.o common.o plasma_access.o
+	g++ -g -o flight-receiver flight_receiver.o common.o plasma_access.o `pkg-config --cflags --libs arrow arrow-flight gflags plasma` -lboost_system
 
-send_to_dest.o: send_to_dest.cc
-	g++ -g -c send_to_dest.cc
+flight_sender.o: flight_sender.cc
+	g++ -g -c flight_sender.cc
 
-receive_and_store.o: receive_and_store.cc
-	g++ -g -c receive_and_store.cc
+flight_receiver.o: flight_receiver.cc
+	g++ -g -c flight_receiver.cc
 
 common.o: common.cc common.h
 	g++ -g -c common.cc
 
-in_memory_storage.o: in_memory_storage.cc in_memory_storage.h
-	g++ -g -c in_memory_storage.cc
+plasma_access.o: plasma_access.cc plasma_access.h
+	g++ -g -c plasma_access.cc
 
 .PHONY: clean
 clean:
-	rm -f send-to-dest receive-and-store
+	rm -f flight-sender flight-receiver

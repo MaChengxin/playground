@@ -130,6 +130,6 @@ if __name__ == "__main__":
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
-        f.write("Start the cpp app send-to-dest\n")
+        f.write("Start the cpp app flight-sender\n")
 
-    subprocess.call("./send-to-dest")
+    subprocess.call("./flight-sender")

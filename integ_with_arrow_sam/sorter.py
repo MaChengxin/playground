@@ -19,7 +19,7 @@ def get_record_batch_from_plasma(object_id, client):
 
 if __name__ == "__main__":
     host_name = socket.gethostname().strip(".bullx")
-    log_file = host_name + "_retrieve_and_sort.log"
+    log_file = host_name + "_sorter.log"
 
     with open(host_name+"_objs_to_be_retrieved.txt", "r") as f:
         ids = set(f.readlines())

@@ -63,4 +63,4 @@ if __name__ == "__main__":
         for obj_id in ids_obj_to_be_retrieved:
             f.write(obj_id + "\n")
 
-    subprocess.call(["python3", "retrieve_and_sort.py"])
+    subprocess.call(["python3", "sorter.py"])

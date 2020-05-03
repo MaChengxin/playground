@@ -9,8 +9,7 @@ DEFINE_int32(thread_pool_size, 4, "Size of the thread pool for Flight tasks");
 typedef std::map<std::string, std::pair<std::string, std::string>> DispatchPlan;
 typedef DispatchPlan::const_iterator DispatchPlanIter;
 
-arrow::Status SendToDestinationNode(std::string host, int port,
-                                    plasma::ObjectID object_id) {
+arrow::Status Takeoff(std::string host, int port, plasma::ObjectID object_id) {
     arrow::Status status;
 
     // Start up a Plasma client and connection it to Plasma Store
@@ -46,19 +45,19 @@ arrow::Status SendToDestinationNode(std::string host, int port,
     return arrow::Status::OK();
 }
 
-arrow::Status SendToDest(int argc, char **argv) {
+arrow::Status TakeoffAll(int argc, char **argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     // Create a log file
     auto host_name = boost::asio::ip::host_name();
     // Reference code: https://stackoverflow.com/a/32435076/5723556
-    std::regex pattern(".bullx"); // extension of hostname on Cartesius
+    std::regex pattern(".bullx");  // extension of hostname on Cartesius
     host_name = std::regex_replace(host_name, pattern, "");
     std::ofstream log_file;
     log_file.open(host_name + "_flight_sender.log", std::ios_base::app);
     log_file << PrettyPrintCurrentTime() << "send-to-dest started" << std::endl;
 
-    // Get Plasma Object IDs and associated destinations from the dispatch plan file
+    // Get Plasma Object IDs and associated destinations from the dispatch plan
     std::ifstream in_file(host_name + "_dispatch_plan.txt");
     std::string dispatch_plan_entry;
     // https://stackoverflow.com/a/16889840/5723556
@@ -89,12 +88,11 @@ arrow::Status SendToDest(int argc, char **argv) {
         log_file << PrettyPrintCurrentTime() << "Scheduling sending "
                  << iter->first << " to " << iter->second.first
                  << ", local Object ID: " << iter->second.second << std::endl;
-            ARROW_ASSIGN_OR_RAISE(
-                auto task,
-                pool->Submit(SendToDestinationNode, 
-                             iter->second.first,
-                             FLAGS_destination_port,
-                             plasma::ObjectID::from_binary(iter->second.second)));
+            ARROW_ASSIGN_OR_RAISE(auto task,
+                                 pool->Submit(Takeoff, 
+                                              iter->second.first,
+                                              FLAGS_destination_port,
+                                              plasma::ObjectID::from_binary(iter->second.second)));
             tasks.push_back(std::move(task));
         }
     }
@@ -108,7 +106,7 @@ arrow::Status SendToDest(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-    arrow::Status status = SendToDest(argc, argv);
+    arrow::Status status = TakeoffAll(argc, argv);
     if (!status.ok()) {
         std::cout << status.ToString() << std::endl;
     }

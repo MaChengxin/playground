@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-#include "in_memory_storage.h"
+#include "plasma_access.h"
 
 std::string PrettyPrintCurrentTime();
 
