@@ -97,6 +97,8 @@ arrow::Status TakeoffAll(int argc, char **argv) {
         }
     }
 
+    log_file << PrettyPrintCurrentTime() << "All Flights scheduled. " << std::endl;
+
     // Wait for tasks to finish
     for (auto &&task : tasks) {
         RETURN_NOT_OK(task.get());
