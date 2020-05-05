@@ -59,10 +59,12 @@ def put_df_to_plasma(client, df, object_id):
     client.seal(object_id)
 
 
-def generate_object_id(offset):
-    id_base = b"0FF1CEBEEFC0FFEE"
-    encocded_offset = str(offset).zfill(4).encode("ASCII")
-    object_id = plasma.ObjectID(id_base+encocded_offset)
+def generate_object_id(chromo):
+    id_base = b"LOCALGENCHROMO"
+    id_suffix = b"PADD"
+    chr_id = convert_chromo_name(chromo)
+    encoded_chr_id = str(chr_id).zfill(2).encode("ASCII")
+    object_id = plasma.ObjectID(id_base + encoded_chr_id + id_suffix)
     return object_id
 
 
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     gb = sam_df.groupby("RNAME")
     client = plasma.connect("/tmp/plasma")
 
-    for i, chromo in enumerate(gb.groups):
+    for chromo in gb.groups:
         # Filter out invalid chromosomes
         if chromo in VALID_CHROMO_NAMES:
             # copy() is to suppress SettingWithCopyWarning
@@ -112,7 +114,7 @@ if __name__ == "__main__":
             per_chromo_sam["RNAME"] = per_chromo_sam["RNAME"].map(convert_chromo_name)
             per_chromo_sam = per_chromo_sam.astype({"FLAG": "int64", "RNAME": "int64", "POS": "int64",
                                                     "MAPQ": "int64", "PNEXT": "int64", "TLEN": "int64"})
-            obj_id = generate_object_id(i)
+            obj_id = generate_object_id(chromo)
             put_df_to_plasma(client,
                              per_chromo_sam,
                              obj_id)

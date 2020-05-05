@@ -3,8 +3,9 @@
 
 #include "common.h"
 
-plasma::ObjectID PutRecordBatchToPlasma(
-    const std::shared_ptr<arrow::RecordBatch>& record_batch);
+arrow::Status PutRecordBatchToPlasma(
+    const std::shared_ptr<arrow::RecordBatch>& record_batch,
+    plasma::ObjectID object_id);
 
 std::shared_ptr<arrow::RecordBatch> GetRecordBatchFromPlasma(
     plasma::ObjectID object_id, plasma::PlasmaClient& client);
