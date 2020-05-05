@@ -5,8 +5,8 @@ import socket
 import subprocess
 
 import pandas as pd
-import pyarrow as pa
 from pyarrow import plasma
+from plasma_access import put_df_to_plasma
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input_file", help="The input SAM file.")
@@ -32,31 +32,6 @@ def read_sam_from_file(filename):
         df = pd.DataFrame.from_records(split_lines, columns=SAM_FIELDS)
 
     return df
-
-
-def put_df_to_plasma(client, df, object_id):
-    """
-    Precondition: the Plasma Object Store has been opened.
-    e.g. by: plasma_store -m 1000000000 -s /tmp/plasma
-    """
-    record_batch = pa.RecordBatch.from_pandas(df)
-    # Get size of record batch and schema
-    mock_output_stream = pa.MockOutputStream()
-    stream_writer = pa.RecordBatchStreamWriter(mock_output_stream,
-                                               record_batch.schema)
-    stream_writer.write_batch(record_batch)
-    data_size = mock_output_stream.size()
-
-    # Allocate a buffer in the object store for the serialized DataFrame
-    buf = client.create(object_id, data_size)
-
-    # Write the serialized DataFrame to the object store
-    stream = pa.FixedSizeBufferWriter(buf)
-    stream_writer = pa.RecordBatchStreamWriter(stream, record_batch.schema)
-    stream_writer.write_batch(record_batch)
-
-    # Seal the object
-    client.seal(object_id)
 
 
 def generate_object_id(chromo):
