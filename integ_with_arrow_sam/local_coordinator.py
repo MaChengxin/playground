@@ -1,4 +1,3 @@
-import argparse
 import collections
 from datetime import datetime
 import socket
@@ -7,9 +6,6 @@ import subprocess
 import pandas as pd
 from pyarrow import plasma
 from plasma_access import put_df_to_plasma
-
-parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input_file", help="The input SAM file.")
 
 SAM_FIELDS = ("QNAME", "FLAG", "RNAME", "POS", "MAPQ", "CIGAR",
               "RNEXT", "PNEXT", "TLEN", "SEQ", "QUAL", "OPTIONAL")
@@ -56,7 +52,6 @@ def convert_chromo_name(chromo):
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
     host_name = socket.gethostname().strip(".bullx")
     log_file = host_name + "_local_coordinator.log"
 
@@ -71,7 +66,12 @@ if __name__ == "__main__":
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write("Started reading SAM data from file\n")
 
-    sam_df = read_sam_from_file(args.input_file)
+    with open("assigned_inputfiles.txt", "r") as f:
+        host_inputfiles = f.readlines()
+        for entry in host_inputfiles:
+            host, inputfile = entry.strip("\n").split(":")
+            if host == host_name:
+                sam_df = read_sam_from_file(inputfile)
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
