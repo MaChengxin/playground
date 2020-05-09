@@ -10,7 +10,22 @@ WORKLOAD_DISTRIBUTION_LOOKUP = {1: (("chr1", "chr2", "chr3", "chr4", "chr5", "ch
                                     ("chr9", "chr10", "chr11",
                                      "chr12", "chr13", "chr14"),
                                     ("chr15", "chr16", "chr17", "chr18", "chr19",
-                                     "chr20", "chr21", "chr22", "chrX", "chrY"))
+                                     "chr20", "chr21", "chr22", "chrX", "chrY")),
+                                6: (("chr1", "chr7", "chr15"),
+                                    ("chr2", "chr6", "chr14"),
+                                    ("chr4", "chr5", "chr9", "chrM"),
+                                    ("chr3", "chr8", "chr13", "chr20"),
+                                    ("chr11", "chr12", "chr18",
+                                     "chr19", "chr22", "chrY"),
+                                    ("chr10", "chr16", "chr17", "chr21", "chrX")),
+                                8: (("chr1", "chr9"),
+                                    ("chr4", "chr17", "chr21", "chr22", "chrM"),
+                                    ("chr2", "chr8"),
+                                    ("chr3", "chr5"),
+                                    ("chr7", "chr13", "chr14"),
+                                    ("chr10", "chr11", "chr12"),
+                                    ("chr15", "chr16", "chr18", "chr19", "chrY"),
+                                    ("chr6", "chr20", "chrX"))
                                 }
 
 if __name__ == "__main__":
