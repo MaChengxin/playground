@@ -33,17 +33,6 @@ class Log:
             self.flights_arrival_time[id_match.group()] = time_match.group()
 
 
-def read_chromo_dest_file(file_name):
-    """ copied from plasma_monitor.py """
-    dest_chromo = collections.defaultdict(list)
-    with open(file_name, "r") as f:
-        chromo_dests = f.readlines()
-        for entry in chromo_dests:
-            chromo, dest = entry.strip("\n").split(":")
-            dest_chromo[dest].append(chromo)
-    return dest_chromo
-
-
 def infer_chromo_from_plasma_id(plasma_id):
     chromo_idx = int(plasma_id[14:16])
     if 0 < chromo_idx < 23:
@@ -73,15 +62,12 @@ if __name__ == "__main__":
     """ Start analyzing the logs. """
     all_departure_time = {}
     all_arrival_time = {}
-    dest_chromo = read_chromo_dest_file("chromo_destination.txt")
     for log in logs:
         all_departure_time[log.node_id] = convert_time(log.flights_departure_time)
         all_arrival_time[log.node_id] = collections.defaultdict(list)
-        respective_chromos = dest_chromo[log.node_id]
         for plasma_id in log.flights_arrival_time:
             chromo_id = infer_chromo_from_plasma_id(plasma_id)
-            if chromo_id in respective_chromos: # This check seems redundant.
-                all_arrival_time[log.node_id][chromo_id].append(convert_time(log.flights_arrival_time[plasma_id]))
+            all_arrival_time[log.node_id][chromo_id].append(convert_time(log.flights_arrival_time[plasma_id]))
 
     """ Current implementation of Flight have no knowledge of where a coming Flight came from.
         We assume "First depart, first arrive".
