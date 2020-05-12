@@ -8,4 +8,4 @@ nodeset -S  "," -e $SLURM_NODELIST > nodelist.txt
 
 # Issue the following commands in the Singularity container
 # Practically it can be done by ssh to a compute node and start Singularity there
-python3 assign_input_file.py && python3 distribute_workload.py && make
+python3 assign_input_file.py -p "/scratch-shared/tahmad/bio_data/SAM/header_removed/U0a_CGATGT_split/4_nodes" && python3 distribute_workload.py && make

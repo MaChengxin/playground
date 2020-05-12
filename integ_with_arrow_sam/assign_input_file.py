@@ -1,15 +1,21 @@
 """ This script generates a mapping between hosts and input files.
 """
 
+import argparse
+
 from os import listdir
 from os.path import isfile, join
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--path", help="Path to input files.")
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+
     with open("nodelist.txt") as f:
         nodes = f.readline()
     
-    path = "/scratch-shared/tahmad/bio_data/SAM/header_removed/U0a_CGATGT_split"
+    path = args.path
     # Assume there is no extra files in this directory
     inputfiles = [join(path, f) for f in listdir(path) if isfile(join(path, f))]
     assigned_input = {n: inputfiles[i] for i, n in enumerate(nodes.strip("\n").split(","))}
