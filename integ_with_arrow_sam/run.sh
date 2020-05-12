@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Open a terminal for each node, shell into the Singularity container, and run the following commands manually:
-# plasma_store -m 8000000000 -s /tmp/plasma &
+# plasma_store -m 32000000000 -s /tmp/plasma &
 # python3 plasma_monitor.py &
 # ./flight-receiver &
 

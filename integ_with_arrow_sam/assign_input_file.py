@@ -9,7 +9,7 @@ if __name__ == "__main__":
     with open("nodelist.txt") as f:
         nodes = f.readline()
     
-    path = "/home/tahmad/mcx/bio_data/ERR001268/4_nodes"
+    path = "/scratch-shared/tahmad/bio_data/SAM/header_removed/U0a_CGATGT_split"
     # Assume there is no extra files in this directory
     inputfiles = [join(path, f) for f in listdir(path) if isfile(join(path, f))]
     assigned_input = {n: inputfiles[i] for i, n in enumerate(nodes.strip("\n").split(","))}

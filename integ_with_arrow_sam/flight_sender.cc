@@ -3,7 +3,7 @@
 #include "common.h"
 
 DEFINE_int32(destination_port, 32108, "Port on the destinations to connect to");
-DEFINE_int32(thread_pool_size, 4, "Size of the thread pool for Flight tasks");
+DEFINE_int32(thread_pool_size, 25, "Size of the thread pool for Flight tasks");
 
 // https://stackoverflow.com/a/1842976/5723556
 typedef std::map<std::string, std::pair<std::string, std::string>> DispatchPlan;
