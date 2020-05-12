@@ -50,6 +50,14 @@ def convert_time(time_str):
     return float(h) * 60 ** 2 + float(m) * 60 + float(s)
 
 
+def calc_n2n_comm_time(start_time, dest, all_arrival_time, idx):
+    arrival_time_wrt_source = []
+    for chromo in all_arrival_time[dest]:
+        arrival_time_wrt_source.append(all_arrival_time[dest][chromo][idx])
+    end_time = max(arrival_time_wrt_source)
+    
+    return float("{:.3f}".format(end_time - start_time))
+
 if __name__ == "__main__":
     with open("nodelist.txt", "r") as f:
         nodes = f.readline().strip("\n").split(",")
@@ -59,7 +67,7 @@ if __name__ == "__main__":
     for node in nodes:
         logs.append(Log(node))
 
-    """ Start analyzing the logs. """
+    """ Analyze the logs: transform logs """
     all_departure_time = {}
     all_arrival_time = {}
     for log in logs:
@@ -69,6 +77,7 @@ if __name__ == "__main__":
             chromo_id = infer_chromo_from_plasma_id(plasma_id)
             all_arrival_time[log.node_id][chromo_id].append(convert_time(log.flights_arrival_time[plasma_id]))
 
+    """ Analyze the logs: calculate all flights duration """
     """ Current implementation of Flight have no knowledge of where a coming Flight came from.
         We assume "First depart, first arrive".
         Therefore we sort all_departure_time_except_self and arrival_time.
@@ -87,6 +96,32 @@ if __name__ == "__main__":
             all_flights_duration[chromo] = [float("{:.3f}".format(arr - dep))
                                             for arr, dep in zip(arrival_time, all_departure_time_except_self)]
 
+    """ Analyze the logs: calculate node to node communication time """
+    node_to_node_comm_time = collections.defaultdict(dict)
+    for dest in nodes:
+        all_departure_time_except_self = {source: all_departure_time[source] 
+                                          for source in all_departure_time if source != dest}
+
+        all_departure_time_except_self = {k: v 
+                                          for k, v in sorted(all_departure_time_except_self.items(), key=lambda item: item[1])}
+        
+        for idx, source in enumerate(all_departure_time_except_self):
+            start_time = all_departure_time_except_self[source]
+            node_to_node_comm_time[source][dest] = calc_n2n_comm_time(start_time, dest, all_arrival_time, idx)
+
+    with open("node_to_node_comm_time.txt", "w") as f:
+        for node in nodes:
+            f.write("\t" + node)
+        f.write("\n")
+        for source in nodes:
+            f.write(source + "\t")
+            for dest in nodes:
+                if source == dest:
+                    f.write("*\t")
+                else:
+                    f.write(str(node_to_node_comm_time[source][dest]) + "\t")
+            f.write("\n")
+   
     """ Code below is for plotting. """
 
     data = []
