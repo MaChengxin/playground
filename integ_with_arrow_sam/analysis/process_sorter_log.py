@@ -44,7 +44,7 @@ if __name__ == "__main__":
                 per_chromo_timestamps[node][chromo_id][3]
 
     with open("sorting_time_N_nodes.txt", "w") as f:
-        f.write("\tretrieve_from_plasma\tconvert_RB_to_DF\tmerge\tsort\tput_back_to_plasma\n")
+        f.write("\tretrieve_from_plasma\tconvert_RB_to_DF\tmerge\tsort\n")
         for chromo in CHROMOS:
             f.write(chromo + "\t" +
                     str(per_chromo_sorting_time[chromo]["retrieve_from_plasma"]) + "\t" +
