@@ -7,7 +7,7 @@ import pandas as pd
 import pyarrow as pa
 from pyarrow import plasma
 
-from plasma_access import get_record_batch_from_plasma, put_df_to_plasma
+from plasma_access import get_record_batch_from_plasma
 
 
 def revert_chromo_name(chromo_idx):
@@ -55,15 +55,7 @@ def sort_chromo(object_ids, log_file):
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write(revert_chromo_name(int(chromo)) +
-                ": finished sorting, started putting back to Plasma\n")
-
-    put_df_to_plasma(client, merged_sam_records,
-                     plasma.ObjectID.from_random())
-
-    with open(log_file, "a") as f:
-        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
-        f.write(revert_chromo_name(int(chromo)) +
-                ": finished putting back to Plasma\n")
+                ": finished sorting\n")
 
 
 if __name__ == "__main__":
