@@ -42,7 +42,6 @@ if __name__ == "__main__":
     # There are 25 objects (1-22, X,Y,M) put by BWA to Plasma.
     while len(all_objects_in_plasma) < 25 + num_plasma_obj_to_receive:
         all_objects_in_plasma = client.list()
-        time.sleep(1)
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
