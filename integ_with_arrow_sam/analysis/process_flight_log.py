@@ -128,7 +128,7 @@ if __name__ == "__main__":
     for chromo in CHROMOS:
         data.append(all_flights_duration[chromo])
     fig, ax = plt.subplots()
-    ax.set_title("Time spent on transferring SAM data (file size 30GB in total) among 6 nodes")
+    ax.set_title("Time spent on transferring SAM data (file size 30GB in total) among N nodes")
     ax.boxplot(data, labels=CHROMOS)
     ax.set_ylabel("Time (seconds)")
 

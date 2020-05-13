@@ -42,8 +42,6 @@ if __name__ == "__main__":
                 per_chromo_timestamps[node][chromo_id][2]
             per_chromo_sorting_time[chromo_id]["sort"] = per_chromo_timestamps[node][chromo_id][4] - \
                 per_chromo_timestamps[node][chromo_id][3]
-            per_chromo_sorting_time[chromo_id]["put_back_to_plasma"] = per_chromo_timestamps[node][chromo_id][5] - \
-                per_chromo_timestamps[node][chromo_id][4]
 
     with open("sorting_time_N_nodes.txt", "w") as f:
         f.write("\tretrieve_from_plasma\tconvert_RB_to_DF\tmerge\tsort\tput_back_to_plasma\n")
@@ -52,5 +50,4 @@ if __name__ == "__main__":
                     str(per_chromo_sorting_time[chromo]["retrieve_from_plasma"]) + "\t" +
                     str(per_chromo_sorting_time[chromo]["convert_RB_to_DF"]) + "\t" +
                     str(per_chromo_sorting_time[chromo]["merge"]) + "\t" +
-                    str(per_chromo_sorting_time[chromo]["sort"]) + "\t" +
-                    str(per_chromo_sorting_time[chromo]["put_back_to_plasma"]) + "\n")
+                    str(per_chromo_sorting_time[chromo]["sort"]) + "\n")
