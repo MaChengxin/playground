@@ -5,6 +5,7 @@
 # Allocate 4 nodes, change the number if needed
 salloc -N 4 -p normal -t 60
 nodeset -S  "," -e $SLURM_NODELIST > nodelist.txt
+touch nodes_ready_for_flight.txt
 
 # Issue the following commands in the Singularity container
 # Practically it can be done by ssh to a compute node and start Singularity there

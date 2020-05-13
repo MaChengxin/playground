@@ -1,7 +1,6 @@
 import collections
 from datetime import datetime
 import socket
-import subprocess
 
 import pandas as pd
 from pyarrow import plasma
@@ -53,7 +52,7 @@ def convert_chromo_name(chromo):
 
 if __name__ == "__main__":
     host_name = socket.gethostname().strip(".bullx")
-    log_file = host_name + "_local_coordinator.log"
+    log_file = host_name + "_transformer.log"
 
     dispatch_plan = collections.defaultdict(dict)
     with open("chromo_destination.txt", "r") as f:
@@ -105,8 +104,5 @@ if __name__ == "__main__":
                     dispatch_plan[chromo]["destination"] + "," +
                     dispatch_plan[chromo]["object_id"] + "\n")
 
-    with open(log_file, "a") as f:
-        f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
-        f.write("Start the cpp app flight-sender\n")
-
-    subprocess.call("./flight-sender")
+    with open("nodes_ready_for_flight.txt", "a") as f:
+        f.write(host_name + "\n")
