@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Open a terminal for each node, shell into the Singularity container, and run the following commands manually:
+# cd ~/mcx/playground/integ_with_arrow_sam && singularity shell ../../integ_arrowsam_simulator_202004251419.simg
 # plasma_store -m 30000000000 -s /tmp/plasma &
 # python3 plasma_monitor.py &
-# python3  synchronizer.py &
+# python3 synchronizer.py &
 # ./flight-receiver &
 
 # This is the command that every node should run by issuing
