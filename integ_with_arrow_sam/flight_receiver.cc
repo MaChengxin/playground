@@ -1,4 +1,5 @@
 #include <functional>  // for std::function
+#include <mutex>
 #include <random>
 
 #include "common.h"
@@ -87,17 +88,17 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
             std::string random_id = gen_random_id(record_batch);
             plasma::ObjectID object_id =
                 plasma::ObjectID::from_binary(random_id);
+            log_mutex_.lock();
+            log_file_ << PrettyPrintCurrentTime() << object_id.binary() << std::endl;
+            log_mutex_.unlock();
             RETURN_NOT_OK(PutRecordBatchToPlasma(record_batch, object_id));
-            log_file_ << PrettyPrintCurrentTime()
-                      << "Flight Receiver has put an object to Plasma with "
-                         "Object ID: "
-                      << object_id.binary() << std::endl;
         }
 
         return arrow::Status::OK();
     }
 
     std::ofstream log_file_;
+    std::mutex log_mutex_;
 };
 
 int main(int argc, char** argv) {
