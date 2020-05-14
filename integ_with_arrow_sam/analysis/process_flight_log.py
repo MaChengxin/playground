@@ -96,6 +96,13 @@ if __name__ == "__main__":
             all_flights_duration[chromo] = [float("{:.3f}".format(arr - dep))
                                             for arr, dep in zip(arrival_time, all_departure_time_except_self)]
 
+    with open("all_flights_duration.txt", "w") as f:
+        for chromo in CHROMOS:
+            f.write(chromo)
+            for t in all_flights_duration[chromo]:
+                f.write("\t" + str(t))
+            f.write("\n")
+    
     """ Analyze the logs: calculate node to node communication time """
     node_to_node_comm_time = collections.defaultdict(dict)
     for dest in nodes:
