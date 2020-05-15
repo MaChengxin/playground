@@ -1,3 +1,5 @@
+#include <mutex>
+
 #include <arrow/util/thread_pool.h>
 
 #include "common.h"
@@ -9,15 +11,23 @@ DEFINE_int32(thread_pool_size, 25, "Size of the thread pool for Flight tasks");
 typedef std::map<std::string, std::pair<std::string, std::string>> DispatchPlan;
 typedef DispatchPlan::const_iterator DispatchPlanIter;
 
-arrow::Status Takeoff(std::string host, int port, plasma::ObjectID object_id) {
+typedef std::map<std::string, std::string> DepartureLog;
+
+std::mutex log_mutex;
+
+arrow::Status Takeoff(std::string host, int port, plasma::ObjectID object_id, DepartureLog* departure_log) {
     arrow::Status status;
 
     // Start up a Plasma client and connection it to Plasma Store
     plasma::PlasmaClient plasma_client;
     ARROW_CHECK_OK(plasma_client.Connect("/tmp/plasma"));
     std::shared_ptr<arrow::RecordBatch> record_batch;
-    record_batch = GetRecordBatchFromPlasma(object_id, plasma_client);
 
+    record_batch = GetRecordBatchFromPlasma(object_id, plasma_client);
+    log_mutex.lock();
+    (*departure_log)[object_id.binary()] = PrettyPrintCurrentTime();
+    log_mutex.unlock();
+    
     // Set up the Flight
     std::unique_ptr<arrow::flight::FlightClient> flight_client;
     arrow::flight::Location location;
@@ -55,7 +65,6 @@ arrow::Status TakeoffAll(int argc, char **argv) {
     host_name = std::regex_replace(host_name, pattern, "");
     std::ofstream log_file;
     log_file.open(host_name + "_flight_sender.log", std::ios_base::app);
-    log_file << PrettyPrintCurrentTime() << "send-to-dest started" << std::endl;
 
     // Get Plasma Object IDs and associated destinations from the dispatch plan
     std::ifstream in_file(host_name + "_dispatch_plan.txt");
@@ -82,17 +91,17 @@ arrow::Status TakeoffAll(int argc, char **argv) {
     ARROW_ASSIGN_OR_RAISE(auto pool, arrow::internal::ThreadPool::Make(FLAGS_thread_pool_size));
     std::vector<std::future<Status>> tasks;
 
+    DepartureLog departure_log;
+
     for (DispatchPlanIter iter = dispatch_plan.begin(); iter != dispatch_plan.end(); ++iter) {
         // There is no need to send objects to self
         if (iter->second.first != host_name) {
-        log_file << PrettyPrintCurrentTime() << "Scheduling sending "
-                 << iter->first << " to " << iter->second.first
-                 << ", local Object ID: " << iter->second.second << std::endl;
             ARROW_ASSIGN_OR_RAISE(auto task,
                                  pool->Submit(Takeoff, 
                                               iter->second.first,
                                               FLAGS_destination_port,
-                                              plasma::ObjectID::from_binary(iter->second.second)));
+                                              plasma::ObjectID::from_binary(iter->second.second),
+                                              &departure_log));
             tasks.push_back(std::move(task));
         }
     }
@@ -102,6 +111,10 @@ arrow::Status TakeoffAll(int argc, char **argv) {
     // Wait for tasks to finish
     for (auto &&task : tasks) {
         RETURN_NOT_OK(task.get());
+    }
+
+    for(auto& log : departure_log) {
+        log_file << log.second << log.first << std::endl;
     }
 
     return arrow::Status::OK();
