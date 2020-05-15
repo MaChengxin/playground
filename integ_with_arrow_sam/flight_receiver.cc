@@ -92,6 +92,9 @@ class FlightReceiver : public arrow::flight::FlightServerBase {
             log_file_ << PrettyPrintCurrentTime() << object_id.binary() << std::endl;
             log_mutex_.unlock();
             RETURN_NOT_OK(PutRecordBatchToPlasma(record_batch, object_id));
+            log_mutex_.lock();
+            log_file_ << PrettyPrintCurrentTime() << object_id.binary() << std::endl;
+            log_mutex_.unlock();
         }
 
         return arrow::Status::OK();
