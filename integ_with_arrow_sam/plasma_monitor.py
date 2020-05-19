@@ -18,48 +18,51 @@ def read_dispatch_plan_file(file_name):
     return dispatch_plan
 
 
-def read_chromo_dest_file(file_name):
-    dest_chromo = collections.defaultdict(list)
-    with open(file_name, "r") as f:
-        chromo_dests = f.readlines()
-        for entry in chromo_dests:
-            chromo, dest = entry.strip("\n").split(":")
-            dest_chromo[dest].append(chromo)
-    return dest_chromo
+def is_local_objs_ready(all_obj_ids, expected_local_obj_ids):
+    for obj_id in expected_local_obj_ids:
+        if not obj_id in all_obj_ids:
+            return False
+    return True
+
+
+def is_received_objs_ready(all_obj_ids, expected_num_recved_objs):
+    received_obj_ids = [obj_id for obj_id in all_obj_ids if "RECEIVEDCHROMO" in obj_id]
+    return len(received_obj_ids) == expected_num_recved_objs
 
 
 if __name__ == "__main__":
     host_name = socket.gethostname().strip(".bullx")
     log_file = host_name + "_plasma_monitor.log"
 
-    dest_chromo = read_chromo_dest_file("chromo_destination.txt")
-    num_of_nodes = len(dest_chromo)
-    num_plasma_obj_to_receive = (
-        num_of_nodes - 1) * len(dest_chromo[host_name])
+    dispatch_plan = read_dispatch_plan_file("dispatch_plan.txt")
+
+    expected_local_obj_ids = []
+    to_remote_obj_ids = []
+    for chromo in dispatch_plan:
+        if dispatch_plan[chromo]["destination"] == host_name:
+            expected_local_obj_ids.append(dispatch_plan[chromo]["object_id"])
+        else:
+            to_remote_obj_ids.append(dispatch_plan[chromo]["object_id"])
+
+    nodes = set([dispatch_plan[chromo]["destination"] for chromo in dispatch_plan])
+    expected_num_recved_objs = (len(nodes) - 1) * len(expected_local_obj_ids)
 
     client = plasma.connect("/tmp/plasma")
-    all_objects_in_plasma = client.list()
-    # There are 25 objects (1-22, X,Y,M) put by BWA to Plasma.
-    while len(all_objects_in_plasma) < 25 + num_plasma_obj_to_receive:
-        all_objects_in_plasma = client.list()
+    all_obj_ids = []
+    while not (is_local_objs_ready(all_obj_ids, expected_local_obj_ids) and is_received_objs_ready(all_obj_ids, expected_num_recved_objs)):
+        all_objs_in_plasma = client.list()
+        all_obj_ids = []
+        for obj_id in all_objs_in_plasma:
+            all_obj_ids.append(obj_id.binary().decode())
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write("Got all objects needed for the next phase. ")
         f.write("Number of objects in Plasma: " +
-                str(len(all_objects_in_plasma)) + "\n")
+                str(len(all_objs_in_plasma)) + "\n")
 
-    ids_all_objects = []
-    for obj_id in all_objects_in_plasma:
-        ids_all_objects.append(obj_id.binary().decode())
+    ids_obj_to_be_retrieved = set(all_obj_ids) - set(to_remote_obj_ids)
 
-    ids_sent_away_objects = []
-    dispatch_plan = read_dispatch_plan_file(host_name+"_dispatch_plan.txt")
-    for chromo in dispatch_plan:
-        if dispatch_plan[chromo]["destination"] != host_name:
-            ids_sent_away_objects.append(dispatch_plan[chromo]["object_id"])
-
-    ids_obj_to_be_retrieved = set(ids_all_objects) - set(ids_sent_away_objects)
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write("Number of objects to be retrieved for the next phase: " +

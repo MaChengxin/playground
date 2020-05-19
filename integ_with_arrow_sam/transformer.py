@@ -1,5 +1,6 @@
 import collections
 from datetime import datetime
+import re
 import socket
 
 import pandas as pd
@@ -29,13 +30,15 @@ def read_sam_from_file(filename):
     return df
 
 
-def generate_object_id(chromo):
-    id_base = b"LOCALGENCHROMO"
-    id_suffix = b"PADD"
-    chr_id = convert_chromo_name(chromo)
-    encoded_chr_id = str(chr_id).zfill(2).encode("ASCII")
-    object_id = plasma.ObjectID(id_base + encoded_chr_id + id_suffix)
-    return object_id
+def read_dispatch_plan_file(file_name):
+    dispatch_plan = collections.defaultdict(dict)
+    with open(file_name, "r") as f:
+        dispatch_plan_entries = f.readlines()
+        for entry in dispatch_plan_entries:
+            chromo, dest, object_id = re.split(":|,", entry.strip("\n"))
+            dispatch_plan[chromo]["destination"] = dest
+            dispatch_plan[chromo]["object_id"] = object_id
+    return dispatch_plan
 
 
 def convert_chromo_name(chromo):
@@ -53,13 +56,6 @@ def convert_chromo_name(chromo):
 if __name__ == "__main__":
     host_name = socket.gethostname().strip(".bullx")
     log_file = host_name + "_transformer.log"
-
-    dispatch_plan = collections.defaultdict(dict)
-    with open("chromo_destination.txt", "r") as f:
-        chromo_destinations = f.readlines()
-        for entry in chromo_destinations:
-            chromo, dest = entry.strip("\n").split(":")
-            dispatch_plan[chromo]["destination"] = dest
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
@@ -79,6 +75,8 @@ if __name__ == "__main__":
     gb = sam_df.groupby("RNAME")
     client = plasma.connect("/tmp/plasma")
 
+    dispatch_plan = read_dispatch_plan_file("dispatch_plan.txt")
+
     for chromo in gb.groups:
         # Filter out invalid chromosomes
         if chromo in VALID_CHROMO_NAMES:
@@ -88,21 +86,16 @@ if __name__ == "__main__":
             per_chromo_sam["RNAME"] = per_chromo_sam["RNAME"].map(convert_chromo_name)
             per_chromo_sam = per_chromo_sam.astype({"FLAG": "int64", "RNAME": "int64", "POS": "int64",
                                                     "MAPQ": "int64", "PNEXT": "int64", "TLEN": "int64"})
-            obj_id = generate_object_id(chromo)
+            obj_id = plasma.ObjectID(dispatch_plan[chromo]["object_id"].encode("ASCII"))
             put_df_to_plasma(client,
                              per_chromo_sam,
                              obj_id)
-            dispatch_plan[chromo]["object_id"] = obj_id.binary().decode()
+
+    client.disconnect()
 
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write("Finished putting data to Plasma\n")
-
-    with open(host_name+"_dispatch_plan.txt", "w") as f:
-        for chromo in dispatch_plan:
-            f.write(chromo + ":" +
-                    dispatch_plan[chromo]["destination"] + "," +
-                    dispatch_plan[chromo]["object_id"] + "\n")
 
     with open("nodes_ready_for_flight.txt", "a") as f:
         f.write(host_name + "\n")

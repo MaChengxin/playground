@@ -49,6 +49,13 @@ arrow::Status Takeoff(std::string host, int port, plasma::ObjectID object_id, De
         return status;
     }
 
+    // Delete the object that has been sent to other nodes, to save memory on the local node
+    status = plasma_client.Delete(object_id);
+    if (!status.ok()) {
+        return status;
+    }
+    std::cout << "Attempted to delete " << object_id.binary() << std::endl;
+
     // Disconnect the Plasma client
     ARROW_CHECK_OK(plasma_client.Disconnect());
 
@@ -67,7 +74,7 @@ arrow::Status TakeoffAll(int argc, char **argv) {
     log_file.open(host_name + "_flight_sender.log", std::ios_base::app);
 
     // Get Plasma Object IDs and associated destinations from the dispatch plan
-    std::ifstream in_file(host_name + "_dispatch_plan.txt");
+    std::ifstream in_file("dispatch_plan.txt");
     std::string dispatch_plan_entry;
     // https://stackoverflow.com/a/16889840/5723556
     std::vector<std::string> dispatch_plan_fields;
