@@ -28,7 +28,7 @@ if __name__ == "__main__":
     print_mem_usage("Start of the profiler")
 
     input_sam_df = read_sam_from_file(args.input_file)
-    print_mem_usage("After reading SAM")
+    print_mem_usage("After reading SAM from file")
     # print_df_size(input_sam_df, "input_sam_df")
 
     client = plasma.connect("/tmp/plasma")
