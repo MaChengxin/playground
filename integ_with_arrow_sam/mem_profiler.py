@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import gc
 import psutil
 import time
@@ -15,7 +16,10 @@ parser.add_argument("--input_file", help="The input SAM file.")
 
 def print_mem_usage(event):
     mem_usage = "{:.2f}".format(psutil.virtual_memory().available / (1024 ** 3))
-    print(event + ", available memory: " + mem_usage + " GB")
+    log_msg = "[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: " + event + ", available memory: " + mem_usage + " GB"
+    print(log_msg)
+    with open("mem_profiler.log", "a") as f:
+        f.write(log_msg + "\n")
 
 
 def print_df_size(df, df_name):
@@ -26,6 +30,8 @@ def print_df_size(df, df_name):
 if __name__ == "__main__":
     args = parser.parse_args()
     print_mem_usage("Start of the profiler")
+    with open("mem_profiler.log", "a") as f:
+        f.write("Input file: " + args.input_file + "\n")
 
     input_sam_df = read_sam_from_file(args.input_file)
     print_mem_usage("After reading SAM from file")
@@ -97,3 +103,5 @@ if __name__ == "__main__":
     merged_sam_df = []
     gc.collect()
     print_mem_usage("After trying to free memory occupied by merged DF")
+
+    print_mem_usage("End of the profiler")
