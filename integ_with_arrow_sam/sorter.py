@@ -21,7 +21,7 @@ def revert_chromo_name(chromo_idx):
         return "chrM"
 
 
-def sort_chromo(object_ids, log_file):
+def sort_chromo(object_ids):
     with open(log_file, "a") as f:
         f.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "]: ")
         f.write(revert_chromo_name(int(chromo)) +
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     procs = []
     for chromo in object_ids_per_chromo:
         object_ids = object_ids_per_chromo[chromo]
-        proc = Process(target=sort_chromo, args=(object_ids, log_file))
+        proc = Process(target=sort_chromo, args=(object_ids,))
         procs.append(proc)
         proc.daemon = True
         proc.start()
