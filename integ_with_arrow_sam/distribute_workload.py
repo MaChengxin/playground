@@ -27,7 +27,29 @@ WORKLOAD_DISTRIBUTION_LOOKUP = {1: (("chr1", "chr2", "chr3", "chr4", "chr5", "ch
                                     ("chr7", "chr13", "chr14"),
                                     ("chr10", "chr11", "chr12"),
                                     ("chr15", "chr16", "chr18", "chr19", "chrY"),
-                                    ("chr6", "chr20", "chrX"))
+                                    ("chr6", "chr20", "chrX")),
+                                10: (("chr1", "chrY"),
+                                     ("chr2", "chr20"),
+                                     ("chr3", "chr14"),
+                                     ("chr4", "chr13"),
+                                     ("chr5", "chr12"),
+                                     ("chr6", "chr9"),
+                                     ("chr7", "chr8", "chrM"),
+                                     ("chr10", "chr18", "chr21", "chr22"),
+                                     ("chr11", "chr16", "chr17"),
+                                     ("chr15", "chr19", "chrX")),
+                                12: (("chr1",),
+                                     ("chr2",),
+                                     ("chr3", "chr19"),
+                                     ("chr4", "chr20"),
+                                     ("chr5", "chr18"),
+                                     ("chr6", "chr16"),
+                                     ("chr7", "chr15"),
+                                     ("chr8", "chr13"),
+                                     ("chr21", "chr22", "chrX"),
+                                     ("chr14", "chr17", "chrY", "chrM"),
+                                     ("chr9", "chr12"),
+                                     ("chr10", "chr11"))
                                 }
 
 
