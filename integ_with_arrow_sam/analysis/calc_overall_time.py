@@ -1,4 +1,5 @@
 import re
+import statistics
 
 
 def convert_time(time_str):
@@ -33,6 +34,9 @@ if __name__ == "__main__":
     assert(len(flights_scheduled_time_per_node) == len(nodes))
     assert(len(finish_sorting_time_per_chromo) == 25)
 
-    overall_duration = max(finish_sorting_time_per_chromo) - \
+    actual_overall_duration = max(finish_sorting_time_per_chromo) - \
         min(flights_scheduled_time_per_node)
-    print("{:.3f}".format(overall_duration))
+    avg_overall_duration = statistics.mean(
+        finish_sorting_time_per_chromo) - min(flights_scheduled_time_per_node)
+    print("Actual overall duration: " + "{:.3f}".format(actual_overall_duration))
+    print("Average overall duration: " + "{:.3f}".format(avg_overall_duration))
