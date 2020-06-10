@@ -29,6 +29,4 @@ g++ -std=c++11 `pkg-config --cflags --libs gflags` sort_records.cc -o sort_recor
 g++ -std=c++11 `pkg-config --cflags --libs gflags` sort_hashed_records.cc -o sort_hashed_records
 ```
 
-We see a huge difference in performance:
-
-![Sorting time](sorting_time.png)
+We see a huge difference in performance, as shown in sort_hashed_keys_result.pdf.
